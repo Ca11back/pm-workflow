@@ -1,0 +1,4 @@
+interface:
+  display_name: "PM Delivery Router"
+  short_description: "初始化或恢复 Delivery，并精确路由到一个阶段或专家 Skill"
+  default_prompt: "Use $pm-delivery to start or resume this product Delivery and route the next phase."

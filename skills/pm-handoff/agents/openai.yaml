@@ -1,0 +1,4 @@
+interface:
+  display_name: "PM Handoff"
+  short_description: "处置审查结论并完成开发交付、Release 发送与接收闭环"
+  default_prompt: "Use $pm-handoff to continue handoff and receipt from this START-HERE.md."

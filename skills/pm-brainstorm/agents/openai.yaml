@@ -1,0 +1,4 @@
+interface:
+  display_name: "PM Brainstorm"
+  short_description: "比较已有 Delivery 中一个决策节点的产品方向与取舍"
+  default_prompt: "Use $pm-brainstorm for the recorded Decision Node in this Delivery; otherwise return me to $pm-delivery."

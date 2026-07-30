@@ -1,0 +1,4 @@
+interface:
+  display_name: "PM Reverse Review"
+  short_description: "只读复审一个已有候选或 Release，并返回问题影响与内部整改路由"
+  default_prompt: "Use $pm-reverse-review to review this existing Delivery candidate; otherwise return it to $pm-delivery first."

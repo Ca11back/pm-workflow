@@ -1,0 +1,29 @@
+# Local agent and Trellis metadata
+AGENTS.md
+agents.md
+**/.*/
+
+# Recoverable local holding area
+bak/
+
+# Dependencies and generated output
+node_modules/
+dist/
+build/
+coverage/
+
+# Python and test caches
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+.uv-cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Local logs and editor/OS debris
+*.log
+*.swp
+*.swo
+.DS_Store

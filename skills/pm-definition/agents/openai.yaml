@@ -1,0 +1,4 @@
+interface:
+  display_name: "PM Definition"
+  short_description: "收敛产品边界、业务逻辑、决策与验收场景并形成可批准定义"
+  default_prompt: "Use $pm-definition to continue the Definition phase from this START-HERE.md."

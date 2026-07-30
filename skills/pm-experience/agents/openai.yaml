@@ -1,0 +1,4 @@
+interface:
+  display_name: "PM Experience"
+  short_description: "确认体验范围、原型证据、预览批准并冻结当前产品候选版本"
+  default_prompt: "Use $pm-experience to continue the Experience phase from this START-HERE.md."
