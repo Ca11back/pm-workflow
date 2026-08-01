@@ -1,17 +1,21 @@
-# Reverse Review：{Delivery / Candidate / Release}
+# Reverse Review：{Delivery / Candidate}
 
 ## Review identity
 
 - Review ID / report path：`REV-{slug}-001` / `reviews/{file}.md`
-- Entry / Candidate or Release bundle root：{required START-HERE.md path} / {physical bundle root and ID}
-- Lifecycle / intended use：`draft` / `implementation | engineering-review | prototype`；或 `released | superseded` / `implementation`
+- Candidate ID / manifest SHA-256：{CAND-*} / {hash}
+- Entry / immutable bundle root：{generated START-HERE.md path} / {physical bundle root}
+- Lifecycle / intended use：`candidate` / `implementation | engineering-review | prototype`
 - Reviewed scope / artifacts：{bundle-relative files/path#IDs and manifest entries}
 - Experience target / status / reason：`not-needed | existing-reference | pen` / `pending | completed | skipped-risk` / {plain-language reason, `owner-skipped`, or `tool-unavailable`}
 - Included Experience：{brief, `.pen` source, exact previews, visual role, sync/read-back, covered Markdown/Pen-node locators}
 - Experience adequacy：`pen-implementation-target | exact-existing-reference | explicit-skipped-risk | not-needed-non-visible | gap` / {user-visible-scope test and evidence}
+- Experience lifecycle authority：`experience/manifest.md` plus generated `START-HERE.md` / {route, status, source and preview agreement; Definition files are not mutable lifecycle snapshots}
+- Multi-state relationship check：{each approved Coverage ID and its relationship statement; agreement across Brief/worksheet/manifest; any contradiction with approved behavior}
 - Pen structure verification：`direct-read-only | isolated-copy | preview-and-recorded-read-back-only | not-applicable` / {evidence or explicit limitation}
 - Isolated-copy boundary / cleanup：`not-used | authorized-copy-cleaned | authorized-copy-retained` / {caller-authorized scope evidence and exact cleanup result}
-- Review mode / date：`independent-agent | separate-pass` / {date}
+- Review mode / date：`self-check | isolated-same-model | independent-model | human` / {date}
+- Source session/model / reviewer session/model：{known identity or `unknown`} / {known identity or `unknown`}
 - Reviewed manifest：{exact files and versions}
 - Prior report/findings for re-review：{paths/FND IDs or none}
 
@@ -25,7 +29,7 @@
 - Candidate change since prior Review：`none | finding-driven -> findings-open/addressed-awaiting-review | other behavior/included .pen/preview -> not-run` / {evidence and historical report path}
 - Scope limitation：{not reviewed / unavailable material}
 
-> Any new Finding makes this report `findings-open`, regardless of severity. This report never edits product facts, accepts risk, changes the actual Review register, creates a Release snapshot, or hands work to development.
+> Any new Finding makes this report `findings-open`, regardless of severity. Same-session work is `self-check` and is never described as independent. This report never edits product facts, accepts risk, changes runtime state, creates a Release snapshot, or hands work to development.
 
 ## Behavior tuples checked
 
@@ -54,25 +58,20 @@
 | --- | --- | --- | --- |
 | {claim/locator} | {status} | {issue} | `FND-001` |
 
-## PM-facing handoff (required)
+## PM-facing result
 
-- PM summary / order：{plain issue titles, user/business impact, PM severity labels and recommended order; no internal paths, IDs or locators}
-- User question（保留匹配结果的一条）：
-  - `findings-open`：本次发现 {摘要}，建议按 {顺序} 处理。是否切回 `pm-handoff`，由它给出修正建议并记录 Owner 决定？
-  - `passed`：本次候选范围审查通过，但尚未创建快照或交付开发。是否切回 `pm-handoff` 进行明确交付确认？
-  - `accepted-risk`：本次仍有 Owner 已接受的限制：{普通中文摘要}。是否切回 `pm-handoff` 核对限制并决定是否交付开发？
+- PM summary / order：{plain issue titles, user/business impact, PM severity labels and recommended order; no internal paths, IDs, hashes or locators}
+- Generated next action：return the immutable report binding to `pm-handoff`; that Skill asks the next Owner decision.
 
 ## Internal route payload (not ordinary PM copy)
 
 - `review_path={path}`
 - `outcome={findings-open | passed | accepted-risk}`
-- `bundle_root={physical Candidate or Release root}`
+- `bundle_root={physical Candidate root}`
 - `reviewed_scope={bundle-relative paths#IDs}`
 - `experience_identity={brief/source/previews/node locators}`
 - `pen_structure_verification={scope/result}`
 - `finding_ids={ordered IDs or none}`
 - `return_targets={one exact target per Finding}`
 - `conclusions={dispositions}`
-- `handoff_state={awaiting-user-choice | return-to-pm-handoff | report-only}`
-
-Ask once. The reviewer does not resolve facts, accept risk, edit the Delivery, create a Release, or hand work to development.
+The reviewer does not resolve facts, accept risk, edit the report after runtime binding, edit the Delivery, create a Release, or hand work to development.

@@ -1,0 +1,11 @@
+pen.dev Interactive Shell
+
+Shell Commands:
+  save() Save the document to disk
+
+# batch_design({ input })
+# batch_get({ nodeIds })
+# export_nodes({ nodeIds, outputDir })
+# get_editor_state({ include_schema })
+# get_screenshot({ nodeId })
+# snapshot_layout({ parentId })

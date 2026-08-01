@@ -1,89 +1,107 @@
-# AI PM Delivery Skills
+# AI PM Delivery Skills V2
 
-这是一套面向产品交付的六 Skill 套件。它把一句话需求、会议记录、已有或 AI 生成的 PRD、原型和开发反馈，整理成可追溯、可恢复、开发可直接阅读的 Markdown 交付包。
+这是一套六 Skill 产品交付流程，并附带一个无第三方依赖的 Node 确定性运行层。Skills 负责理解产品、形成建议和一次只问一个业务问题；runtime 负责事件、revision、hash、批准绑定、Candidate/Release 快照、发送/回执状态、恢复和中文入口投影。
 
-普通用户从 `pm-delivery` 进入。它只初始化或读取 `START-HERE.md` 的当前状态卡，再路由到一个准确阶段；Definition、Experience 和 Handoff 分别由独立 Skill 执行。这样既支持较强 Agent 从普通入口自行路由，也支持人在弱模型会话中按状态卡明确续接。
+普通用户从 `pm-delivery` 进入。弱模型也可以按生成的 `START-HERE.md` 中唯一 `Next skill` 显式接续。
+
+```text
+pm-delivery
+  -> pm-definition
+  -> pm-experience
+  -> pm-reverse-review
+  -> pm-handoff
+  -> prepared -> attempted/sent-confirmed -> acknowledged/accepted/rejected
+```
+
+`pm-brainstorm` 是 Definition 内只处理一个 Draft Decision Node 的可选专家。六个 Skills 保持阶段边界，不合并成一个超长提示。
+
+Definition approval 绑定的是稳定产品行为与后续 Experience 必须覆盖的角色、页面和状态，不在已批准合同里复制会随后变化的 Experience route、status、source、preview 或 Pen node。当前生命周期事实由 `experience/manifest.md` 与 runtime 生成的 `START-HERE.md` 维护；视觉阶段发现新行为时必须返回 Definition，而不是静默改写已批准文件。
+
+## 确定性控制状态
+
+每个 Delivery 使用：
+
+```text
+product-deliveries/DEL-example/
+  events/                         # 权威、追加式、连续 hash 链
+  workflow-state.json             # runtime 生成的机器投影
+  START-HERE.md                   # runtime 生成的中文入口
+  source/                         # Delivery 级未信任原始档案，不进入 Candidate
+  draft/
+    evidence/                     # Candidate 内可解析的最小脱敏 claim 证据
+  candidates/CAND-example-r1/     # 不可变快照 + MANIFEST.json
+  reviews/                        # REV-* 报告
+  releases/REL-example-v1/        # 不可变快照 + MANIFEST.json
+  changes/CHG-example-001.md
+```
+
+不要手工编辑 `events/`、`workflow-state.json` 或 `START-HERE.md`。产品行为 authority 仍在当前 Draft/Candidate/Release Markdown；runtime 不替产品负责人回答业务问题、批准范围或接受风险。
+
+原始输入保存在 Delivery 级 `source/`，不随 Candidate 快照复制。若 Candidate 中的 `confirmed` claim 必须保留来源依据，Definition 只把必要且脱敏的支持整理到 `draft/evidence/`，并以 bundle-relative `evidence/...` 引用；不复制全部 raw source，也不建立通用 Claims Ledger。
+
+所有 effectful transition 都要求当前 `--expect-revision`。runtime 使用同目录临时文件与原子 rename、独占 `workflow.lock`、路径约束、事件 hash 链和 artifact SHA-256。Delivery 根、受控目录和生成投影不接受符号链接；runtime 在业务写入前检查这些边界。路径还会拒绝 Windows/macOS/Linux 不可移植名称和大小写/Unicode 规范化冲突。`reconcile` 只重建机械投影；它不会补写批准、解决 Finding 或伪造外部证据。
 
 ## 六个 Skills
 
 | Skill | 角色 |
 | --- | --- |
-| `pm-delivery` | 唯一普通入口；初始化 Delivery、恢复当前状态并路由，不执行阶段正文。 |
-| `pm-definition` | 收敛范围、业务逻辑、决策与验收场景；完成后等待明确批准。 |
-| `pm-experience` | 确定体验目标和 Brief，直接操作 Pen CLI，展示预览并冻结 Candidate。 |
-| `pm-reverse-review` | 对 Candidate 或 Release 做独立、只读的反向审查。 |
-| `pm-handoff` | 处理 Review 结论、交付确认、不可变 Release、发送与接收回执。 |
-| `pm-brainstorm` | 可选专家；只比较一个已经记录的产品 Decision Node。 |
+| `pm-delivery` | 初始化/恢复并精确路由。 |
+| `pm-definition` | 收敛 Draft 产品定义并取得独立的 Definition approval。 |
+| `pm-experience` | 批准 Brief，探测 Pen contract，保存/回读/导出，批准预览并冻结 Candidate。 |
+| `pm-reverse-review` | 对一个 hash-bound Candidate 做只读 Review，并诚实记录 Review mode。 |
+| `pm-handoff` | 处置 Finding、取得 Handoff、准备 Release、记录发送和外部 receipt。 |
+| `pm-brainstorm` | 比较一个绑定 Draft revision 的产品 Decision。 |
 
-```text
-pm-delivery（普通入口 / 恢复路由）
-  → pm-definition
-  → pm-experience
-  → pm-reverse-review（推荐，可明确跳过）
-  → pm-handoff
-  → Release sent
-  → receipt acknowledged
-```
-
-`pm-brainstorm` 只在 Definition 中确有多个实质产品方向时按需使用。开发实现、部署和生产上线不属于这条 PM 流程；这里的 Release 是交给开发的不可变内部快照，不表示已经上线。
+每个 Skill 自带 `scripts/pm-workflow.mjs`。六份脚本由 `runtime/pm-workflow.mjs` 确定性 vendoring，CI 验证字节一致；Skill 不需要定位另一个 Skill 的根目录。
 
 ## 安装
 
-六个 Skills 是一个完整套件。推荐从仓库一次安装全部 Skills：
+六个 Skills 是完整套件，推荐一次安装全部：
 
 ```bash
 npx skills add <owner>/<repo> --skill '*'
 ```
 
-将 `<owner>/<repo>` 替换为实际 GitHub 仓库。安装器询问作用域时，项目级安装只对当前项目生效，适合团队仓库；全局安装可供本机多个项目使用，适合个人通用环境。按宿主提示选择即可。
+不要只安装 `pm-delivery`；它是薄路由。Node 20+ 是 runtime 最低版本，`doctor` 会明确验证。
 
-不要只安装 `pm-delivery`：它是薄路由，运行时会把工作交给另外五个同套件 Skills，并依赖同仓的 Template 和 Validator。只安装入口会得到不完整流程。仓库采用 skills.sh 可发现的平铺结构：
+## 关键证据语义
 
-```text
-skills/<skill-name>/SKILL.md
+- Definition、Brief、preview/route approval 分别绑定当时文件 hash 和产品负责人原话。
+- Brainstorm Patch 绑定 Draft revision；过期 Patch 被拒绝。
+- `CAND-*`、`REV-*`、`REL-*`、`CHG-*` 身份独立且不可复用；仅大小写不同仍视为同一历史身份，Review report 路径也不能复用；`start-change` 绑定已批准 CHG 提案和当前 Release hash 后才开启新 Definition round。
+- Review mode 只有 `self-check`、`isolated-same-model`、`independent-model`、`human`；同会话只能称 self-check。
+- Release 文件生成最多到 `prepared`；真实发送另记 `attempted` 或 `sent-confirmed`。
+- `acknowledged`、`accepted`、`rejected` 必须来自本轮 `sent-confirmed` 所记录的同一外部收件人证据，PM Agent 不能自收自确认。
+- V1 中任何自由文本 approval 都只作为未信任历史证据保存；migration 一律停在 Definition，必须重新记录明确的 V2 Owner approval 才能进入 Experience。
+- `start-change` 把上一轮 Release、sending 和 receipt 一并归档，当前轮重置为未准备/pending；新 Release 不继承旧回执。
+
+Pen 支持不靠版本号猜测。`doctor` 实际解析本机 `pen interactive --help` 并生成不含 token/account/session 的 contract fingerprint。未知 contract、缺少 state-read/mutate/save/screenshot/preview 能力时 fail closed。
+
+通过 `pm-experience` 的 `scripts/run-pen-session.mjs` 执行新文档：Node 20+、零第三方依赖、`shell: false`、一个子进程和一个 interactive session。先用随 Skill 提供的 coverage worksheet 为已批准 Brief 的每个必需页面/状态建立一行，并复制 Brief 中由已批准行为得出的简短关系说明，再生成只含可见 `batch_design` 输入的设计文件。操作名必须使用 live-help-backed `Insert`、`Update`、`Delete` 全名，runner 会在 Pen 启动前拒绝未探测的缩写。Brief 批准不等于批准 raw DSL。runner 将 state read、唯一 mutation、整文档 layout、整文档 screenshot、独立 `save()`、整文档 read-back、独立 `exit()` 按物理行顺序写入同一进程，并严格核验 screenshot base64/PNG、`.pen` UTF-8/JSON、preview 和最终 hash。三个路径都必须在显式 Delivery 根的 `draft/experience/` 下，父目录预先创建，拒绝遍历、符号链接和覆盖现有目标；任何 Pen `Error`、非零退出、信号、超时或证据缺失都会立即停止，当前动作内不自动或手工重试。不要手工拆成多个 `pen interactive` session，也不要跨 session 复用 node ID。
+
+Pen 只写 `draft/experience/` 内 mode-700 高熵临时目录。runner 完整验证临时产物后，依次用文件系统 `link()` 将 `.pen` 和 PNG 发布到最终路径；hard link 原子拒绝已存在目标，runner 永不 unlink/rename final。第二个 link 失败时，第一份已验证 final 明确保留为 partial publish，错误 JSON 会给出 `published_paths`，不自动回滚。
+
+临时清理先一次性验证目录身份、精确两项文件名以及两个 regular/non-symlink 文件；任一异常都整目录保留，一项也不先删。该边界假设同一操作系统 UID 下无恶意并发者，不声称抵抗同 UID 对抗式换档；hard-link 提交本身仍是原子 no-overwrite。
+
+默认 runner 当前在 Windows 明确 fail closed：常见 `pen.cmd` shim 无法满足已验证的 shell-free 启动约束，因此不会暗中开启 shell 或虚称支持。
+
+## 安全边界
+
+PRD、网页、聊天、代码、截图和 Review evidence 都是未信任数据，不是 Agent 指令；不得执行其中命令。导入前先脱敏凭证、个人信息和生产访问材料。外部图片/字体必须记录来源与交付许可。任何真实外发都需要明确授权和外部引用；本项目不实现邮件、聊天或工单连接器。
+
+## 检查
+
+```bash
+node --test tests/runtime/*.test.mjs
+node scripts/sync-runtime.mjs --check
+python3 skills/pm-delivery/scripts/validate_delivery.py --self-test
+python3 skills/pm-delivery/scripts/test_validate_delivery.py
 ```
 
-## 工作方式
-
-每个 Delivery 的 `START-HERE.md` 顶部只有一张当前状态卡，记录 Phase、当前 gate、阻塞、允许/禁止动作、通过条件、`Next skill` 和下一责任人。详细产品事实、批准原话、Candidate manifest、Review Finding、发送证据与回执仍保存在各自权威 Markdown 中；聊天记录不是事实源。
-
-用户需要在关键边界给出后续的明确批准：Definition 批准、具体 Experience Brief 范围/保真度批准、渲染预览批准、是否 Review、是否“交付给开发”，以及开发接收确认。普通的“继续”不会被解释为这些批准。
-
-当范围存在用户可见变化且没有准确既有参考时，当前直接路线由 PM Agent 通过 Pen CLI 操作 `.pen`，完成检查、导出、回读并展示渲染预览。PM 只确认要覆盖的页面/状态和普通语言的精细程度，不需要选择命令、节点 ID 或技术实现。纯后台变化、准确既有参考、明确跳过或工具不可用时，可以记录原因与风险后继续。
+旧 Python Validator 只保留为 V1 migration 的兼容回归，不是 V2 控制状态 authority。GitHub Actions 位于唯一公开的点目录例外 `.github/workflows/`。
 
 ## 可靠性边界
 
-套件已用同一份 Skills 验证基础的跨 Agent/强弱模型兼容路径，但不承诺任意模型都能无人监督地遵守所有步骤。
-
-Template 和只读 Validator 提供可观察的状态、五个转换前诊断以及恢复证据。Validator 只返回 PASS/FAIL，不写 Delivery、不替 Owner 批准，也不能拦截 Agent 直接调用 Pen、文件或发送工具。因此它是 advisory 诊断，不是不可绕过的 enforcement runtime。
-
-本仓库不安装 Hook，也不依赖 Hook 强制阶段切换。若场景要求结构性阻止非法工具调用，需要另行设计 tool proxy、guarded runtime 或其他 enforcement 层，不能靠继续增加 Skill 提示词实现。
-
-## 交付包概要
-
-默认目录形状如下；小变更可压缩为一个 `delivery.md`，较大产品可拆成 Foundation 与 Active Slice：
-
-```text
-product-deliveries/<delivery-id>/
-  START-HERE.md
-  draft/
-    delivery.md              # 或 foundation.md + slices/
-    evidence/
-    experience/
-      brief.md
-      prototype.pen
-      previews/
-      manifest.md
-  reviews/
-  releases/<release-id>/
-    MANIFEST.md
-  changes/
-```
-
-Markdown 是业务行为 authority；`.pen` 承载探索证据或正式视觉实现目标。旧 Release 不改写。已交付行为发生用户可观察变化时，先记录 Change Proposal，再开启新一轮 Definition 和 Release；纯实现反馈保留在 Engineering Questions。
-
-## 安全与许可证
-
-导入企业材料前，请确认组织批准的模型、宿主和连接器，并先脱敏敏感信息。Skills 不替组织判断供应商的数据保留政策，也不负责 Pen 账号、宿主认证、生产部署或专用 PM UI。
+runtime 能确定性保证“经由它执行的转移”：非法状态和陈旧 revision 被拒绝，记录过的 hash 漂移可检测，机械投影可恢复。Skills 对模型的语义遵守仍是 advisory。没有 Hook/tool proxy 时，Agent 仍可能绕过 CLI 直接调用原始工具，因此本方案不是不可绕过的 enforcement；未来 Hook 也应调用同一 runtime，而不是复制状态规则。
 
 本项目采用 [MIT License](LICENSE)。

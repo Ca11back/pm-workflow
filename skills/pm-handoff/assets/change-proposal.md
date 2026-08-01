@@ -2,7 +2,7 @@
 
 ## Identity and immutable baseline
 
-- Proposal / path：`CP-{slug}-001` / `changes/CP-{slug}-001.md`
+- Proposal / path：`CHG-{slug}-001` / `changes/CHG-{slug}-001.md`
 - Current Release ID / bundle root：`REL-{slug}-vN` / `releases/REL-{slug}-vN/`
 - Current pointer：`START-HERE.md`
 - Trigger / evidence：{engineering feedback or new business evidence path/date}
@@ -36,12 +36,12 @@
 ## Owner decision and new round
 
 - Owner words / rationale / date：{decision}
-- If approved, new draft / candidate：{paths} / `REL-{slug}-vN+1`
+- If approved, new Draft revision / Candidate：{revision and paths} / `CAND-{slug}-rN+1`
 - Experience decision / artifact impact：{target, status, updated identity}
 - Focused or full Review：{scope, status, report path}
 - New snapshot path：`releases/REL-{slug}-vN+1/`
 - Mutable index relations：new `supersedes={old path}`; old metadata `superseded-by={new path}`; `current={new path}`
-- Release sent / receipt status：{recipient, new Release path, sent date} / `pending | acknowledged`
-- Acknowledgement：{recipient, date and result; only `acknowledged` ends the round}
+- Send status / evidence：`prepared | attempted | sent-confirmed` / {recipient, external reference, exact evidence}
+- Receipt：`pending | acknowledged | accepted | rejected` / {external recipient, reference, exact evidence}
 
 > If observable product behavior does not change, move the feedback to Engineering Questions and do not use this proposal.

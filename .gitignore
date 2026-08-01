@@ -27,3 +27,10 @@ __pycache__/
 *.swp
 *.swo
 .DS_Store
+
+# Public CI is the only published dot-directory exception.
+!.github/
+.github/*
+!.github/workflows/
+.github/workflows/*
+!.github/workflows/ci.yml

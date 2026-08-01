@@ -2,13 +2,17 @@
 
 ## Authority reconstruction
 
-Start from the Delivery's `START-HERE.md`, then follow the selected Candidate/Release `bundle_root`, manifest, and reading order. Record every physical root, bundle-relative path, and version reviewed. Verify included scope, shared dependencies, exclusions, lifecycle, Review status, intended use, Experience brief/source/previews/read-back, current pointer, and supersession links. Verify that Draft and Release keep the same internal shape and that no snapshot locator points back to mutable Draft. Reject `released/superseded + prototype/engineering-review`; those uses are Draft-only and snapshots must use `implementation`. Chat, old PRDs, prototypes, and evidence do not override Markdown behavior.
+Start from generated `START-HERE.md`, then follow the selected `CAND-*` root and `MANIFEST.json`. Record Candidate ID/hash, physical root, bundle-relative paths, and exact versions reviewed. Verify included scope, shared dependencies, exclusions, intended use, Experience brief/source/previews/read-back, approval-event bindings, and that no Candidate locator points back to mutable Draft. Chat, old PRDs, prototypes, and evidence do not override current Candidate Markdown behavior.
 
 For each behavior-bearing claim, record its source location, fact status, authority, and affected full bundle-relative `path#ID`. Flag unsourced `confirmed` claims, AI assertions promoted without Owner confirmation, hidden conflicts, stale links, duplicate file-local IDs when the path is missing, and any visual behavior or Pen node not mapped back to Markdown.
 
 For an included `.pen` artifact, use a read-only direct capability or an isolated copy/output inside the caller-authorized write scope. Verify the destination before writing, never mutate or save the authoritative artifact, and remove only the exact isolated copy when cleanup is authorized. Perform state read, batched node read, layout inspection, and targeted screenshot comparison only. Record whether `.pen` structure was independently verified and whether authorized cleanup completed. If no authorized isolated copy or direct inspection is available, inspect the exact exported previews and Experience read-back evidence and disclose the structural limitation.
 
 Reconstruct the Experience routing decision before judging artifact quality. For current user-visible scope, accept only a completed Pen `implementation-target`, an exact authoritative `existing-reference` covering all required normal and material boundary states, or explicit `skipped-risk` evidence for Owner skip/tool unavailability with the concrete impact. For non-user-visible scope, `not-needed` must state why no page, action, copy, visibility, state, feedback, or result changes. An `exploration` artifact remains Definition evidence and cannot satisfy Candidate readiness. Treat a missing, stale, or contradictory route as a Finding while preserving the Owner's later ability to accept risk and hand off.
+
+Definition files are hash-bound before Experience and therefore contain durable product requirements and required coverage, not a mutable snapshot of the current Experience route/status/source/preview. Resolve those lifecycle facts from Candidate `experience/manifest.md`, its frozen artifacts, and generated `START-HERE.md`. Do not require the Definition contract to duplicate them. A contradictory lifecycle claim that the Definition author chose to include is still a Finding.
+
+For a multi-state Pen artifact, reconstruct each frame's runtime relationship from the approved Brief, coverage worksheet, Markdown locators, node names, and manifest. Require the same approval-bound Coverage ID and relationship statement throughout. Evidence-canvas layout is not runtime behavior authority; raise a Finding only when relationship evidence is missing, internally contradictory, or conflicts with approved behavior.
 
 ## Behavior tuple and ambiguity test
 
@@ -36,7 +40,7 @@ Every Finding has one report-local `FND-###`, severity/PM label, affected `bundl
 - `brainstorm ...md#DEC-###`
 - `context/Owner confirmation ...md#DEC-###`
 - `experience correction experience/prototype.pen#<node-id> -> ...md#RULE-###`
-- `Change Proposal changes/CP-*.md` for a released snapshot
+- `clarify whether the Finding is implementation-only and therefore outside this product Review`
 
 Do not supply a final product answer unless the authority already makes it unambiguous.
 
@@ -58,4 +62,4 @@ Finish every report with one explicit choice:
 - For `passed`, say the reviewed scope passed and no snapshot or production release occurred. Ask once whether to return to `pm-handoff` for explicit handoff to development.
 - For `accepted-risk`, show the plain-language accepted limitations, then ask once whether to return for the explicit handoff decision.
 
-Do not show report paths, Candidate/Release roots, IDs, or locators in ordinary PM copy; provide them only on an explicit traceability request. Write `handoff_state=awaiting-user-choice` before asking. On the later answer, change only that Reviewer-owned routing field to `return-to-pm-handoff` or `report-only`; keep the report conclusions immutable. If accepted, pass `review_path`, `bundle_root`, `reviewed_scope`, `experience_identity`, `pen_structure_verification`, ordered FND IDs, dispositions/conclusions, and return targets internally to `pm-handoff`. If declined/report-only, stop. Never answer a Finding, choose for an Owner, edit product facts, accept risk, update actual Review status, or create a Release during handoff.
+Do not show report paths, Candidate roots, IDs, hashes, or locators in ordinary PM copy; provide them only on an explicit traceability request. Keep conclusions immutable after runtime records the report. Pass `review_path`, `bundle_root`, `reviewed_scope`, `experience_identity`, `pen_structure_verification`, ordered FND IDs, conclusions, and return targets internally to `pm-handoff`. Never answer a Finding, choose for an Owner, edit product facts, accept risk, or create a Release during handoff.

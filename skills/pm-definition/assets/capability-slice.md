@@ -27,13 +27,13 @@
 - `SCN-001` Given {actor, stage and permission}; When {event}; Then {result and side effect}.
 - `SCN-002` Given {failure, duplicate or timeout}; When {event}; Then {failure/recovery result}.
 
-## Experience behavior sync
+## Experience requirements
 
-- Entry summary：{root `START-HERE.md` Experience summary; not copied into the bundle}
-- Experience source / preview：{`experience/prototype.pen` and `experience/previews/*.png`, reference, or none}
-- Covered locators / pages / states：{bundle-relative path#IDs, Pen node locators and coverage}
-- Visual-only direction：{does not add business behavior}
-- Drift or missing behavior：{return target path#DEC/RULE or none}
+- Required behavior coverage：{bundle-relative path#RULE/SCN locators}
+- Required roles / pages / states：{normal and every material boundary state that later evidence must cover, or none for non-visible work}
+- Visual-only constraints：{does not add business behavior}
+- Later visual discovery rule：{new behavior returns to a path#DEC/RULE and Definition approval before Candidate}
+- Lifecycle authority：current Experience route, status, source, preview, and Pen node bindings live in `experience/manifest.md` and generated `START-HERE.md`; they are not duplicated in this approval-bound contract.
 
 ## Decisions and open items
 
@@ -44,5 +44,6 @@
 ## Handoff notes
 
 - Product risks or limits：{current Slice risks}
+- Confirmed-claim evidence：{bundle-relative `evidence/<file>.md` locators or `none`; raw `source/` is not Candidate-local authority}
 - Engineering Questions：{behavior-preserving technical questions}
 - Entry / current pointer：{root `START-HERE.md`; resolve from physical Delivery root, not from a bundle-relative locator}

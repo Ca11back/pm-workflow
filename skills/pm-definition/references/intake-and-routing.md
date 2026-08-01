@@ -2,7 +2,7 @@
 
 ## Definition-stage capture
 
-This reference governs the **Definition** phase of the canonical lifecycle. Preserve the raw request or link as dated `evidence-only` before interpreting it. Map only behavior-bearing claims—scope, roles, objects, lifecycle, rules, permissions, money/data effects, exceptions, acceptance, commitments, and approvals—to stable IDs. Background prose can remain a citation without becoming a claim ledger.
+This reference governs the **Definition** phase of the canonical lifecycle. Preserve the raw request or link under Delivery-level `source/` as dated `evidence-only` before interpreting it. Raw evidence is not copied into Candidate snapshots. For a claim that will remain `confirmed` in Candidate, create only the necessary sanitized support under `draft/evidence/` from the supplied template and cite it as bundle-relative `evidence/...`. Map only behavior-bearing claims—scope, roles, objects, lifecycle, rules, permissions, money/data effects, exceptions, acceptance, commitments, and approvals—to stable IDs. Background prose can remain a raw archive citation without becoming a claim ledger.
 
 ## Two independent classifications
 

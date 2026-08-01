@@ -51,9 +51,13 @@ Future capability gaps do not block the current Active Slice unless `START-HERE.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `DEC-001` | {top-level decision; add recommendation for a full-list reply} | `open` | `required` / `blocking-current-slice` | {path#DEC or none} | {source} / {Owner} | {paths#IDs} | {action} |
 
-## Experience behavior sync
+## Experience requirements
 
-- Entry summary：{root `START-HERE.md` Experience summary; not copied into the bundle}
-- Experience source / preview：{`experience/prototype.pen` and `experience/previews/*.png`, reference, or none}
-- Shared locators covered by current artifact：{bundle-relative paths#IDs and Pen node locators}
-- Drift / return target：{path#DEC/RULE or none}
+- Required shared behavior coverage：{bundle-relative paths#RULE/SCN}
+- Required roles / pages / states：{shared normal and material boundary states, or none for non-visible work}
+- Later visual discovery rule：{new behavior returns to a path#DEC/RULE and Definition approval before Candidate}
+- Lifecycle authority：current Experience route, status, source, preview, and Pen node bindings live in `experience/manifest.md` and generated `START-HERE.md`; they are not duplicated in this approval-bound contract.
+
+## Confirmed-claim evidence
+
+- Bundle-contained evidence：{`evidence/<file>.md` locators or `none`; raw `source/` remains outside Candidate authority}

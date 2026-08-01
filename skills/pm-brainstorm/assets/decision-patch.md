@@ -1,52 +1,50 @@
 # Decision Patch：{Decision title}
 
+## Revision binding
+
+- Delivery root：{Delivery root}
+- Draft root：`draft/`
+- Base draft revision：{exact generated `draft_revision`}
+- Decision locator：`draft/{file}.md#DEC-001`
+- Patch identity / path：{PATCH identifier} / {separate patch path}
+- Owner：{authorized person or role}
+
 ## Context
 
-- Delivery / Candidate bundle root：{Delivery path} / {physical bundle root}
-- Decision locator：`{file}.md#DEC-001`
-- Open question：{one observable product decision}
-- Input refs：{authoritative facts and evidence paths}
-- Confirmed context（do not reopen）：{path#IDs and decisions}
-- Constraints / Owner：{constraints} / {authorized person or role}
-- Affected locators：{path#RULE/STATE/EVENT/SCN/artifact IDs}
+- Open observable question：{one decision}
+- Authoritative facts / evidence：{current Draft locators and source paths}
+- Confirmed context not to reopen：{path#IDs}
+- Constraints / affected locators：{constraints} / {path#RULE/STATE/EVENT/SCN IDs}
 
 ## Options
 
 ### Option A — {name}
 
-- Observable behavior：{user, stage, event, result}
-- Example：Given {context}; When {event}; Then {result}.
-- Benefit / trade-off：{benefit} / {cost or risk}
-- Reversibility：{easy/limited/hard and why}
-- Evidence fit / assumptions：{refs/assumptions}
-- Affected locators：{path#IDs}
+- Observable behavior / example：{behavior} / Given…When…Then…
+- Benefit / trade-off / reversibility：{details}
+- Evidence fit / assumptions / affected locators：{details}
 
 ### Option B — {name}
 
-- Observable behavior：{behavior}
-- Example：Given {context}; When {event}; Then {result}.
-- Benefit / trade-off：{benefit} / {cost or risk}
-- Reversibility：{assessment}
-- Evidence fit / assumptions：{refs/assumptions}
-- Affected locators：{path#IDs}
+- Observable behavior / example：{behavior} / Given…When…Then…
+- Benefit / trade-off / reversibility：{details}
+- Evidence fit / assumptions / affected locators：{details}
 
-### Option C — {optional third material direction}
+### Option C — {optional material third direction}
 
-- Observable behavior / example / benefit / trade-off / reversibility / evidence / affected locators：{details}
+- Observable behavior / example / trade-off / reversibility / evidence / locators：{details}
 
 ## Recommendation and Owner decision
 
-- Recommendation / evidence：{A/B/C} / {why it fits now}
-- Strongest downside：{honest trade-off}
-- Owner decision：`open | selected A | selected B | selected C`
-- Owner words / rationale / date：{record}
+- Recommendation / strongest downside：{A/B/C and evidence} / {honest cost}
+- Owner decision / exact words / date：`open | selected A | selected B | selected C` / {evidence}
 - Rejected options and reasons：{record}
 
-## Return to pm-definition
+## Return to Definition
 
-- Patch path：{path}
-- Delivery / bundle root / Decision locator：{Delivery path} / {physical bundle root} / `{file}.md#DEC-001`
 - Fact updates：{confirmed/assumption/open/rejected changes}
 - Logic/scenario updates：{path#IDs}
-- Next downstream node：{full path#DEC or none}
-- Merge authority：`pm-definition`; this patch is not a Release and cannot advance lifecycle by itself.
+- Next downstream Decision：{full Draft path#DEC or none}
+- Merge authority：`pm-definition`
+
+> This patch is untrusted semantic input, not a lifecycle artifact. `pm-definition` must record it against the same base Draft revision before merge. It is never a Candidate or Release.

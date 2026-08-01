@@ -28,19 +28,19 @@
 
 Fact status: `confirmed / assumption / open / conflict / evidence-only / rejected`.
 
-## Experience behavior sync
+## Experience requirements
 
-- Entry summary：{root `START-HERE.md` Experience summary; not copied into the bundle}
-- Experience source / preview：{`experience/prototype.pen` and `experience/previews/*.png`, reference, or none}
-- Covered by artifact：{bundle-relative path#RULE/SCN and `experience/prototype.pen#node-id` locators}
-- Visual-only choices：{hierarchy/content direction that does not add behavior}
-- Behavior discovered in visual：{must be written above under a path#ID before candidate/review}
+- Required behavior coverage：{bundle-relative path#RULE/SCN locators}
+- Required roles / pages / states：{normal and every material boundary state that later evidence must cover, or none for non-visible work}
+- Visual-only constraints：{hierarchy/content direction that does not add behavior}
+- Later visual discovery rule：{new behavior returns to a path#DEC/RULE and Definition approval before Candidate}
+- Lifecycle authority：current Experience route, status, source, preview, and Pen node bindings live in `experience/manifest.md` and generated `START-HERE.md`; they are not duplicated in this approval-bound contract.
 
 ## Evidence
 
 | Source / date | Original behavior claim | Mapped path#ID | Authority note |
 | --- | --- | --- | --- |
-| {path or material} | {claim} | `delivery.md#RULE-001` | `evidence-only` |
+| `evidence/{slug}.md` or {raw archive label for evidence-only context} | {claim} | `delivery.md#RULE-001` | `confirmed` only when the bundle-contained evidence and Owner confirmation support it; otherwise `evidence-only` |
 
 ## Engineering Questions
 

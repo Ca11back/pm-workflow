@@ -1,6 +1,6 @@
 # Risk probes
 
-Apply proportionally to the selected candidate/Release and intended use. A probe determines review depth, not severity by itself.
+Apply proportionally to the selected Candidate and intended use. A probe determines review depth, not severity by itself.
 
 ## Source and vocabulary
 
@@ -43,6 +43,8 @@ Apply proportionally to the selected candidate/Release and intended use. A probe
 - Is any `exploration` artifact still `pending` in Definition and excluded from Candidate readiness?
 - Does each Pen node that expresses a permission, action, stage, exception, notification, or side effect map to a current bundle-relative Markdown `path#ID`?
 - Are `experience/brief.md`, `.pen` source, exact preview exports, node coverage, structural/visual checks, missing states, `tool-unavailable`, read-back failures, and `sync_status` visible?
+- Are current Experience lifecycle facts read from `experience/manifest.md` and generated `START-HERE.md`, without requiring the earlier hash-bound Definition contract to duplicate mutable route/status/source/preview facts?
+- For every multi-state artifact, does the same approval-bound Coverage ID and relationship statement survive through Brief, coverage worksheet, node name, and manifest without conflicting with approved behavior?
 - Was the authoritative `.pen` kept read-only during Review? Did every isolated copy/output stay inside the caller-authorized write scope and get cleaned only by its exact authorized location? If isolated inspection was unavailable, does the report disclose that structure was not independently verified?
 - Did an Experience change occur after the reviewed candidate? If Finding-driven, is current status `findings-open`; otherwise, with no pending Finding, is the old report historical and current status `not-run`?
 
@@ -57,4 +59,4 @@ Apply proportionally to the selected candidate/Release and intended use. A probe
 - Are `not-run` and `skipped` distinct and unable to erase prior Finding history?
 - After post-Review behavior/Experience change, does the current status follow the exact `findings-open` versus `not-run` downgrade while preserving historical/accepted-risk entries?
 - Does `released` mean handed to development rather than prototype, Review, or production launch?
-- Does sending set `receipt_status: pending` and keep the round open, with only explicit `acknowledged` evidence allowing Stop?
+- Does Release creation stop at `prepared`, sending use `attempted` or evidence-backed `sent-confirmed`, and receipt use an external-recipient reference for `acknowledged | accepted | rejected`?
