@@ -1,6 +1,6 @@
 ---
 name: pm-brainstorm
-description: Explore exactly one unresolved product Decision Node from an existing PM Workflow V2 Draft revision, compare two or three materially different user-visible directions, recommend one with evidence and trade-offs, and produce a revision-bound Decision Patch for pm-definition. Use only with a valid Delivery root, Draft root, current draft_revision, and bundle-relative path#DEC-* locator. Never require a Candidate, edit the Delivery, or advance workflow state.
+description: Explore exactly one unresolved product Decision Node from an existing current-schema PM Workflow Draft revision, compare two or three materially different user-visible directions, recommend one with evidence and trade-offs, and produce a revision-bound Decision Patch for pm-definition. Use only with a valid Delivery root, Draft root, current draft_revision, and bundle-relative path#DEC-* locator. Never require a Candidate, edit the Delivery, or advance workflow state.
 ---
 
 # PM Brainstorm

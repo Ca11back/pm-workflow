@@ -64,6 +64,8 @@ Future capability gaps do not block the current Active Slice unless `START-HERE.
 - Required shared behavior coverage：{bundle-relative paths#RULE/SCN}
 - Required roles / pages / states：{shared normal and material boundary states, or none for non-visible work}
 - Required journey closure：{shared entry/re-entry/retrieval obligations for persistent or asynchronously changing user-visible objects; or not applicable with reason}
+- Prototype readiness walkthrough：{bounded shared-journey result covering entry, input/action, visible result, material failure/recovery, and later retrieval}
+- Unresolved prototype blockers：{concrete path#DEC/RULE list or none only after the walkthrough}
 - Later visual discovery rule：{new behavior returns to a path#DEC/RULE and Definition approval before Candidate}
 - Lifecycle authority：current Experience route, status, source, preview, and Pen node bindings live in `experience/manifest.md` and generated `START-HERE.md`; they are not duplicated in this approval-bound contract.
 

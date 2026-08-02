@@ -57,14 +57,22 @@ test("pm-delivery bootstrap order matches the runtime's empty-root and actor con
 
 test("pm-definition keeps approval-bound contracts free of mutable Experience snapshots", async () => {
   const skill = await readFile(path.join(candidateRoot, "skills", "pm-definition", "SKILL.md"), "utf8");
+  const readiness = await readFile(path.join(candidateRoot, "skills", "pm-definition", "references", "prototype-readiness.md"), "utf8");
   const templateNames = ["small-delivery.md", "capability-slice.md", "product-foundation.md"];
   assert.match(skill, /do not record the current Experience route, lifecycle status, generated source, preview, or Pen node bindings/i);
   assert.match(skill, /never mutate an approved Definition file merely to refresh lifecycle prose/);
   assert.match(skill, /persists or changes asynchronously/);
+  assert.match(skill, /prototype-readiness/i);
+  assert.match(skill, /internally hand one bounded exploration problem/i);
+  assert.match(readiness, /each current-scope journey/i);
+  assert.match(readiness, /two or three independent decisions/i);
+  assert.match(readiness, /draft\/exploration\//);
   for (const name of templateNames) {
     const text = await readFile(path.join(candidateRoot, "skills", "pm-definition", "assets", name), "utf8");
     assert.match(text, /## Experience requirements/);
     assert.match(text, /Required journey closure/);
+    assert.match(text, /Prototype readiness walkthrough/);
+    assert.match(text, /Unresolved prototype blockers/);
     assert.match(text, /Lifecycle authority/);
     assert.match(text, /experience\/manifest\.md/);
     assert.doesNotMatch(text, /Entry summary|Experience source \/ preview|Experience behavior sync/);
@@ -76,6 +84,8 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   const reference = await readFile(path.join(candidateRoot, "skills", "pm-experience", "references", "pen-direct.md"), "utf8");
   const experienceBrief = await readFile(path.join(candidateRoot, "skills", "pm-experience", "assets", "experience-brief.md"), "utf8");
   const experienceManifest = await readFile(path.join(candidateRoot, "skills", "pm-experience", "assets", "experience-manifest.md"), "utf8");
+  const discoveryTemplate = await readFile(path.join(candidateRoot, "skills", "pm-experience", "assets", "prototype-discovery.md"), "utf8");
+  const gapProtocol = await readFile(path.join(candidateRoot, "skills", "pm-experience", "references", "design-gap-protocol.md"), "utf8");
   const reviewTemplate = await readFile(path.join(candidateRoot, "skills", "pm-reverse-review", "assets", "reverse-review.md"), "utf8");
   const reviewMethod = await readFile(path.join(candidateRoot, "skills", "pm-reverse-review", "references", "review-method.md"), "utf8");
   const reviewProbes = await readFile(path.join(candidateRoot, "skills", "pm-reverse-review", "references", "risk-probes.md"), "utf8");
@@ -127,6 +137,15 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(experienceManifest, /Journey closure read-back/);
   assert.match(experienceManifest, /Dangling affordances/);
   assert.match(experienceManifest, /Re-entry \/ retrieval coverage/);
+  assert.match(experienceManifest, /Design gap sweep/);
+  assert.match(experienceManifest, /Unresolved design gaps/);
+  assert.match(experienceManifest, /exactly match the union of current Brief and preview approval artifacts/i);
+  assert.match(discoveryTemplate, /provisional/i);
+  assert.match(discoveryTemplate, /cannot approve Definition, Brief, preview, or Candidate/i);
+  assert.match(gapProtocol, /Pen-only visual or layout defect/i);
+  assert.match(gapProtocol, /Brief-only gap/i);
+  assert.match(gapProtocol, /Definition behavior gap/i);
+  assert.match(gapProtocol, /finish one read-only sweep/i);
   assert.match(experienceManifest, /Process state：`running \| ready \| terminated`/);
   assert.match(experienceManifest, /Resumable handle retained/);
   assert.match(experienceManifest, /Empty output while the process is alive remains `running`/);
@@ -170,6 +189,51 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   }
   assert.match(readme, /`start-draft-revision`/);
   assert.match(readme, /Candidate 后仍只走 Finding 修订路径/);
+});
+
+test("Review and Handoff keep Candidate scope exact and complete at a local developer package", async () => {
+  const reviewSkill = await readFile(path.join(candidateRoot, "skills", "pm-reverse-review", "SKILL.md"), "utf8");
+  const reviewMethod = await readFile(path.join(candidateRoot, "skills", "pm-reverse-review", "references", "review-method.md"), "utf8");
+  const reviewTemplate = await readFile(path.join(candidateRoot, "skills", "pm-reverse-review", "assets", "reverse-review.md"), "utf8");
+  const handoffSkill = await readFile(path.join(candidateRoot, "skills", "pm-handoff", "SKILL.md"), "utf8");
+  const releaseReference = await readFile(path.join(candidateRoot, "skills", "pm-handoff", "references", "release-and-change.md"), "utf8");
+  const readme = await readFile(path.join(candidateRoot, "README.md"), "utf8");
+  for (const text of [reviewSkill, reviewMethod, reviewTemplate]) {
+    assert.match(text, /Candidate scope hygiene/i);
+    assert.match(text, /exploration/i);
+    assert.match(text, /failed|superseded|historical/i);
+  }
+  for (const text of [handoffSkill, releaseReference, readme]) {
+    assert.match(text, /DEVELOPER-HANDOFF\.md/);
+    assert.match(text, /complete locally|local .*complete|completed.*local|本地.*完成|本地 PM 交付完成/i);
+    assert.match(text, /explicit.*request|明确.*要求|明确需要/i);
+    assert.match(text, /send or receipt is not required|send or receipt is not a precondition|无需先发送或取得回执|无需.*发送.*回执/i);
+  }
+  assert.match(handoffSkill, /exact Release path/i);
+  assert.match(readme, /local Release complete/);
+});
+
+test("formal source is a clean current-schema implementation without migration compatibility", async () => {
+  const roots = [".github", "runtime", "scripts", "skills", "tests"];
+  const files = [];
+  const forbiddenPattern = new RegExp([
+    `\\bV${1}\\b`,
+    `\\bV${2}\\b`,
+    `v${1}-imported`,
+    `migrate-v${1}`,
+    `parseV${1}StartHere`,
+    `${["validate", "delivery"].join("_")}\\.py`,
+  ].join("|"), "i");
+  for (const root of roots) files.push(...await filesUnder(path.join(candidateRoot, root)));
+  for (const file of files) {
+    const text = await readFile(file, "utf8");
+    assert.doesNotMatch(text, forbiddenPattern, path.relative(candidateRoot, file));
+  }
+  const version = JSON.parse(await readFile(path.join(candidateRoot, "runtime", "runtime-version.json"), "utf8"));
+  const pkg = JSON.parse(await readFile(path.join(candidateRoot, "package.json"), "utf8"));
+  assert.deepEqual(version, { runtime_version: "3.0.0", schema_version: 3, minimum_node_major: 20 });
+  assert.equal(pkg.version, "3.0.0");
+  assert.deepEqual((await readdir(path.join(candidateRoot, "skills", "pm-delivery", "scripts"))).sort(), ["pm-workflow.mjs"]);
 });
 
 test("017 interaction improvements remain integrated across the Skill handoffs", async () => {

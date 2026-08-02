@@ -32,6 +32,8 @@
 - Required behavior coverage：{bundle-relative path#RULE/SCN locators}
 - Required roles / pages / states：{normal and every material boundary state that later evidence must cover, or none for non-visible work}
 - Required journey closure：{entry, immediate result, and later re-entry/retrieval for each persistent or asynchronously changing user-visible object; or not applicable with reason}
+- Prototype readiness walkthrough：{bounded result covering entry, input/action, visible result, material failure/recovery, and later retrieval}
+- Unresolved prototype blockers：{concrete path#DEC/RULE list or none only after the walkthrough}
 - Visual-only constraints：{does not add business behavior}
 - Later visual discovery rule：{new behavior returns to a path#DEC/RULE and Definition approval before Candidate}
 - Lifecycle authority：current Experience route, status, source, preview, and Pen node bindings live in `experience/manifest.md` and generated `START-HERE.md`; they are not duplicated in this approval-bound contract.

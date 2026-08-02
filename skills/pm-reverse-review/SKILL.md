@@ -1,6 +1,6 @@
 ---
 name: pm-reverse-review
-description: Read-only review one immutable PM Workflow V2 Candidate against its manifest, evidence, Markdown contract, scenarios, shared models, and Experience artifact, then record a hash-bound REV-* result with an honest self-check, isolated-same-model, independent-model, or human mode. Use for a bounded pre-handoff Review or re-review. Never alter product facts or Candidate content, accept risk, create a Release, send externally, or impersonate an independent reviewer.
+description: Read-only review one immutable current-schema PM Workflow Candidate against its manifest, evidence, Markdown contract, scenarios, shared models, and Experience artifact, then record a hash-bound REV-* result with an honest self-check, isolated-same-model, independent-model, or human mode. Use for a bounded pre-handoff Review or re-review. Never alter product facts or Candidate content, accept risk, create a Release, send externally, or impersonate an independent reviewer.
 ---
 
 # PM Reverse Review
@@ -8,6 +8,8 @@ description: Read-only review one immutable PM Workflow V2 Candidate against its
 ## Establish an immutable target
 
 Resolve this Skill's sibling `scripts/pm-workflow.mjs`, run `status --json` and `validate --json`, and continue only for the exact generated Candidate/Review action. Read the selected `CAND-*` manifest and only the scope/evidence it names. Never edit Candidate, event, or generated projection files.
+
+Before reviewing behavior, verify Candidate scope hygiene: every reviewed file must be listed in `MANIFEST.json`; the Experience manifest's declared Candidate artifacts must match its approval-bound Brief and preview artifacts; and the bundle must not contain exploration, failed, superseded, or historical Experience outputs. Treat any scope mismatch or unexplained extra file as a Finding. Do not broaden Review scope from mutable Draft or old snapshots.
 
 ## Hand off internally
 

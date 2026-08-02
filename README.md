@@ -1,4 +1,4 @@
-# AI PM Delivery Skills V2
+# AI PM Delivery Skills
 
 这是一套六 Skill 产品交付流程，并附带一个无第三方依赖的 Node 确定性运行层。Skills 负责理解产品、形成建议和一次只问一个业务问题；runtime 负责事件、revision、hash、批准绑定、Candidate/Release 快照、发送/回执状态、恢复和中文入口投影。
 
@@ -10,7 +10,8 @@ pm-delivery
   -> pm-experience
   -> pm-reverse-review
   -> pm-handoff
-  -> prepared -> attempted/sent-confirmed -> acknowledged/accepted/rejected
+  -> local Release complete
+       \-> optional send/receipt audit (only when explicitly requested)
 ```
 
 `pm-brainstorm` 是 Definition 内只处理一个 Draft Decision Node 的可选专家。六个 Skills 保持阶段边界，不合并成一个超长提示。
@@ -28,10 +29,11 @@ product-deliveries/DEL-example/
   START-HERE.md                   # runtime 生成的中文入口
   source/                         # Delivery 级未信任原始档案，不进入 Candidate
   draft/
+    exploration/                  # 临时原型探索；不进入批准或 Candidate
     evidence/                     # Candidate 内可解析的最小脱敏 claim 证据
-  candidates/CAND-example-r1/     # 不可变快照 + MANIFEST.json
+  candidates/CAND-example-r1/     # 仅批准绑定文件的不可变快照 + MANIFEST.json
   reviews/                        # REV-* 报告
-  releases/REL-example-v1/        # 不可变快照 + MANIFEST.json
+  releases/REL-example-001/       # Candidate + Review + DEVELOPER-HANDOFF.md
   changes/CHG-example-001.md
 ```
 
@@ -46,10 +48,10 @@ product-deliveries/DEL-example/
 | Skill | 角色 |
 | --- | --- |
 | `pm-delivery` | 初始化/恢复并精确路由。 |
-| `pm-definition` | 收敛 Draft 产品定义并取得独立的 Definition approval。 |
-| `pm-experience` | 批准 Brief，由 Agent 直接操作 Pen interactive，完成结构/视觉审阅，批准预览并冻结 Candidate。 |
+| `pm-definition` | 收敛 Draft 产品定义，完成原型可实现性走查并取得独立的 Definition approval。 |
+| `pm-experience` | 可选地做一次临时探索；正式阶段批准 Brief，由 Agent 直接操作 Pen interactive，闭环核对全部 Journey，批准预览并冻结 Candidate。 |
 | `pm-reverse-review` | 对一个 hash-bound Candidate 做只读 Review，并诚实记录 Review mode。 |
-| `pm-handoff` | 处置 Finding、取得 Handoff、准备 Release、记录发送和外部 receipt。 |
+| `pm-handoff` | 处置 Finding、取得 Handoff 并生成本地开发交付包；按需记录可选的发送/receipt 审计。 |
 | `pm-brainstorm` | 比较一个绑定 Draft revision 的产品 Decision。 |
 
 每个 Skill 自带 `scripts/pm-workflow.mjs`。六份脚本由 `runtime/pm-workflow.mjs` 确定性 vendoring，CI 验证字节一致；Skill 不需要定位另一个 Skill 的根目录。
@@ -62,7 +64,7 @@ product-deliveries/DEL-example/
 npx skills add <owner>/<repo> --skill '*'
 ```
 
-不要只安装 `pm-delivery`；它是薄路由。Node 20+ 是 runtime 最低版本，`doctor` 会明确验证 runtime 与可选 Delivery 边界。
+不要只安装 `pm-delivery`；它是薄路由。Node 20+ 是 runtime 最低版本，`doctor` 会明确验证 runtime 与可选 Delivery 边界。当前 runtime/package schema 均为 `3.0.0` / `3`；非当前 schema 的 Delivery 直接失败，不迁移、不兼容，需在空目录重新初始化。
 
 ## 关键证据语义
 
@@ -71,10 +73,10 @@ npx skills add <owner>/<repo> --skill '*'
 - `CAND-*`、`REV-*`、`REL-*`、`CHG-*` 身份独立且不可复用；仅大小写不同仍视为同一历史身份，Review report 路径也不能复用；`start-change` 绑定已批准 CHG 提案和当前 Release hash 后才开启新 Definition round。
 - Brief 批准后、Candidate 冻结前发现范围或行为缺口时，`start-draft-revision` 只接纳本次 artifact 明确绑定的批准 hash 变化，按 `experience | definition` 返回并使对应批准失效；Candidate 后仍只走 Finding 修订路径。
 - Review mode 只有 `self-check`、`isolated-same-model`、`independent-model`、`human`；同会话只能称 self-check。
-- Release 文件生成最多到 `prepared`；真实发送另记 `attempted` 或 `sent-confirmed`。
-- `acknowledged`、`accepted`、`rejected` 必须来自本轮 `sent-confirmed` 所记录的同一外部收件人证据，PM Agent 不能自收自确认。
-- V1 中任何自由文本 approval 都只作为未信任历史证据保存；migration 一律停在 Definition，必须重新记录明确的 V2 Owner approval 才能进入 Experience。
-- `start-change` 把上一轮 Release、sending 和 receipt 一并归档，当前轮重置为未准备/pending；新 Release 不继承旧回执。
+- Candidate 只复制 Definition、Brief、preview 各自 approval 事件精确绑定的文件，以及 Definition 明确绑定的最小 `evidence/...`；临时探索、失败、过期和历史产物一律不进入。
+- Release 包含该精确 Candidate、绑定的 Review 报告和生成的 `DEVELOPER-HANDOFF.md`。生成成功即表示本地 PM 交付完成，不表示已外发或已部署。
+- 真实发送仅在用户后来明确要求审计时另记 `attempted` 或 `sent-confirmed`；`acknowledged`、`accepted`、`rejected` 必须来自本轮同一外部收件人证据，PM Agent 不能自收自确认。
+- `start-change` 可直接基于任何当前本地完成的 Release；无需先发送或取得回执。它把上一轮 Release 及已有的可选 sending/receipt 审计一并归档，新 Release 不继承旧审计。
 
 Pen 只支持本机 0.3.1 或更高版本的 direct interactive 路线。当前 Agent 读取实时 help 并操作一个 `pen interactive` 进程；不使用 Pen Agent Mode、嵌套模型、MCP/plugin、runner 或版本适配层，runtime 也不解释 Pen 协议。
 
@@ -91,11 +93,9 @@ PRD、网页、聊天、代码、截图和 Review evidence 都是未信任数据
 ```bash
 node --test tests/runtime/*.test.mjs
 node scripts/sync-runtime.mjs --check
-python3 skills/pm-delivery/scripts/validate_delivery.py --self-test
-python3 skills/pm-delivery/scripts/test_validate_delivery.py
 ```
 
-旧 Python Validator 只保留为 V1 migration 的兼容回归，不是 V2 控制状态 authority。GitHub Actions 位于唯一公开的点目录例外 `.github/workflows/`。
+GitHub Actions 位于唯一公开的点目录例外 `.github/workflows/`。
 
 ## 可靠性边界
 

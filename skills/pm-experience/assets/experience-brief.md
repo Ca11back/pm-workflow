@@ -13,6 +13,7 @@
 - Smallest affected scope：{only the current flow/pages/states and explicit shared dependencies}
 - Fidelity / interaction / surface：{flow, low-fidelity static pages, or more detailed treatment in plain language; clickability only when behavior requires it} / {device or surface}
 - Unresolved Definition decisions：`none`；若仍有行为决策未完成，返回 `pm-definition`
+- Definition prototype-readiness result：{approved walkthrough result and `Unresolved prototype blockers: none`; exploration observations never replace Definition authority}
 
 > Keep approval words/date `pending` while presenting this Brief. After the Owner replies, copy the real wording/date above and immediately call `approve-brief` with the same evidence. Never predict or fabricate the reply. After that event, do not edit this Brief; return scope or fidelity changes to Definition for a new approval round. The Experience manifest, worksheet, Pen source, read-back, preview, and lifecycle fields are generated after Brief approval.
 
@@ -51,3 +52,4 @@ The approved Coverage sequence for each Journey is the ordered unique list of Co
 - Must not invent：{permissions, validation, states, exceptions, notifications or side effects not present in Markdown}
 - Preview acceptance：{what the PM/Owner must be able to verify in the rendered export}
 - Known limits / risk if skipped：{specific limitation or none}
+- Design-gap handling：complete one bounded all-Journey sweep; consolidate independent gaps; route Pen-only / Brief / Definition corrections without inventing behavior

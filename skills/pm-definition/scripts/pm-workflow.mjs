@@ -19,8 +19,8 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-export const RUNTIME_VERSION = "2.0.0";
-export const SCHEMA_VERSION = 2;
+export const RUNTIME_VERSION = "3.0.0";
+export const SCHEMA_VERSION = 3;
 export const MINIMUM_NODE_MAJOR = 20;
 
 export const EXIT = Object.freeze({
@@ -33,7 +33,6 @@ export const EXIT = Object.freeze({
 
 const EVENT_TYPES = Object.freeze([
   "created",
-  "v1-imported",
   "brainstorm-patch-recorded",
   "definition-approved",
   "brief-approved",
@@ -51,7 +50,6 @@ const EVENT_TYPES = Object.freeze([
 
 const EVENT_PAYLOAD_KEYS = Object.freeze({
   created: ["title", "owner"],
-  "v1-imported": ["source_sha256", "migration_report"],
   "brainstorm-patch-recorded": ["base_draft_revision", "decision_locator", "patch_path"],
   "definition-approved": ["approval_evidence"],
   "brief-approved": ["approval_evidence", "experience_route"],
@@ -73,7 +71,7 @@ const EVENT_PAYLOAD_KEYS = Object.freeze({
   ],
   "finding-resolution-recorded": ["finding_id", "disposition", "return_phase", "resolution_evidence"],
   "handoff-confirmed": ["confirmation_evidence", "candidate_id", "candidate_manifest_sha256"],
-  "release-created": ["release_id", "release_path", "manifest_sha256", "candidate_id", "candidate_manifest_sha256", "change_id"],
+  "release-created": ["release_id", "release_path", "manifest_sha256", "candidate_id", "candidate_manifest_sha256", "review_id", "review_report_sha256", "change_id"],
   "send-recorded": ["send_status", "channel", "recipient", "external_reference", "send_evidence"],
   "receipt-recorded": ["receipt_status", "recipient", "external_reference", "receipt_evidence"],
   "change-started": ["change_id", "change_path", "approval_evidence", "release_id", "release_manifest_sha256"],
@@ -116,7 +114,6 @@ const COMMAND_FLAGS = Object.freeze({
   render: ["root", "expect-revision", "json"],
   reconcile: ["root", "check", "expect-revision", "json"],
   doctor: ["root", "json"],
-  "migrate-v1": ["root", "dry-run", "apply", "expect-revision", "actor-role", "actor-label", "json"],
   "record-brainstorm-patch": [
     "root", "expect-revision", "patch", "base-revision", "decision-locator", "actor-role", "actor-label", "json",
   ],
@@ -156,7 +153,7 @@ const COMMAND_FLAGS = Object.freeze({
 });
 
 const MULTI_FLAGS = new Set(["artifact", "finding-id"]);
-const BOOLEAN_FLAGS = new Set(["json", "check", "dry-run", "apply"]);
+const BOOLEAN_FLAGS = new Set(["json", "check"]);
 
 export class WorkflowError extends Error {
   constructor(message, { exitCode = EXIT.INVALID, code = "invalid", details = undefined } = {}) {
@@ -187,34 +184,6 @@ function assertExactKeys(value, allowed, label) {
 function assertNonEmptyString(value, label) {
   if (typeof value !== "string" || !value.trim()) fail(`${label} 必须是非空字符串。`);
   return value.trim();
-}
-
-function assertNullableString(value, label) {
-  if (value !== null) assertNonEmptyString(value, label);
-}
-
-function assertStringArray(value, label) {
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !item.trim())) fail(`${label} 必须是字符串数组。`);
-}
-
-function validateMigrationReport(report) {
-  assertExactKeys(report, [
-    "schema", "title", "owner", "source_phase", "mapped_phase", "definition_approval_classification",
-    "explicit_evidence", "observed", "contradictions", "missing", "can_apply",
-  ], "migration_report");
-  if (report.schema !== "v1-start-here-known-fields") fail("migration_report.schema 无效。");
-  assertNonEmptyString(report.title, "migration_report.title");
-  assertNonEmptyString(report.owner, "migration_report.owner");
-  assertEnum(report.source_phase, ["definition", "experience"], "migration_report.source_phase");
-  if (report.mapped_phase !== "definition") fail("V1 migration 只能安全映射到 Definition。", { code: "migration-state" });
-  if (report.definition_approval_classification !== "not-evaluated") fail("V1 approval prose 不得被分类为 V2 approval。", { code: "migration-state" });
-  assertExactKeys(report.explicit_evidence, ["definition_approval"], "migration_report.explicit_evidence");
-  assertNullableString(report.explicit_evidence.definition_approval, "migration_report.explicit_evidence.definition_approval");
-  assertExactKeys(report.observed, ["candidate_gate", "review_status", "release_sent", "receipt_status"], "migration_report.observed");
-  for (const [key, value] of Object.entries(report.observed)) assertNullableString(value, `migration_report.observed.${key}`);
-  assertStringArray(report.contradictions, "migration_report.contradictions");
-  assertStringArray(report.missing, "migration_report.missing");
-  if (report.can_apply !== true || report.contradictions.length || report.missing.length) fail("stored migration_report 必须是已验证可应用且无矛盾/缺项的报告。");
 }
 
 function assertEnum(value, allowed, label) {
@@ -542,7 +511,6 @@ export function initialState(deliveryId) {
     receipt: { status: "pending", records: [] },
     active_change: null,
     change_history: [],
-    migration: null,
   };
 }
 
@@ -603,22 +571,6 @@ export function reduceEvent(previousState, event) {
       state.blocker = "none";
       state.next_skill = "pm-definition";
       state.next_action = "完成当前范围的产品定义并请负责人确认";
-      break;
-    }
-    case "v1-imported": {
-      assertReducer(state.revision === 0, "v1-imported 只能是首个事件。");
-      state.title = event.payload.migration_report.title;
-      state.owner = event.payload.migration_report.owner;
-      state.migration = {
-        source_sha256: event.payload.source_sha256,
-        report: event.payload.migration_report,
-        event_id: event.event_id,
-      };
-      state.phase = "definition";
-      state.status = "ready";
-      state.blocker = "V1 证据仅作为历史输入导入；必须重新取得明确的 V2 产品负责人批准";
-      state.next_skill = "pm-definition";
-      state.next_action = "核对产品定义并记录新的 V2 Owner approval";
       break;
     }
     case "brainstorm-patch-recorded": {
@@ -800,6 +752,8 @@ export function reduceEvent(previousState, event) {
         manifest_sha256: event.payload.manifest_sha256,
         candidate_id: event.payload.candidate_id,
         candidate_manifest_sha256: event.payload.candidate_manifest_sha256,
+        review_id: event.payload.review_id,
+        review_report_sha256: event.payload.review_report_sha256,
         handoff_event: state.handoff.event_id,
         change_id: event.payload.change_id,
         event_id: event.event_id,
@@ -810,10 +764,11 @@ export function reduceEvent(previousState, event) {
       }
       state.sending = { status: "prepared", attempts: [] };
       state.receipt = { status: "pending", records: [] };
-      state.status = "blocked";
-      state.blocker = "Release 仅已准备，尚无真实发送证据";
-      state.next_skill = "pm-handoff";
-      state.next_action = "由获授权人员或连接器发送并记录外部引用";
+      state.phase = "complete";
+      state.status = "complete";
+      state.blocker = "none";
+      state.next_skill = "none";
+      state.next_action = "停止；本地开发交付已完成，外发记录仅在明确需要时追加";
       break;
     }
     case "send-recorded": {
@@ -830,17 +785,11 @@ export function reduceEvent(previousState, event) {
       };
       state.sending.attempts.push(attempt);
       state.sending.status = event.payload.send_status;
-      if (event.payload.send_status === "sent-confirmed") {
-        state.phase = "receipt";
-        state.status = "blocked";
-        state.blocker = "等待真实收件人确认";
-        state.next_action = "取得并记录收件人的外部确认或处理结论";
-      } else {
-        state.status = "blocked";
-        state.blocker = "发送尝试未被确认成功";
-        state.next_action = "核对失败证据后重新发送或更换获授权渠道";
-      }
-      state.next_skill = "pm-handoff";
+      state.phase = "complete";
+      state.status = "complete";
+      state.blocker = "none";
+      state.next_skill = "none";
+      state.next_action = "停止；本地交付保持完成，可按明确请求继续记录真实外发证据";
       break;
     }
     case "receipt-recorded": {
@@ -862,14 +811,12 @@ export function reduceEvent(previousState, event) {
       state.status = "complete";
       state.blocker = "none";
       state.next_skill = "none";
-      state.next_action = "停止；后续可按真实外部结论补记 accepted 或 rejected";
+      state.next_action = "停止；本地交付保持完成，acknowledged 可按真实外部结论补记 accepted 或 rejected";
       break;
     }
     case "change-started": {
-      assertReducer(state.phase === "complete", "CHG 变更轮次只能从已完成的 Release receipt 开始。");
+      assertReducer(state.phase === "complete", "CHG 变更轮次只能从已完成的本地 Release 开始。");
       assertReducer(Boolean(state.release), "CHG 变更轮次缺少当前 Release。");
-      assertReducer(state.sending.status === "sent-confirmed", "CHG 变更轮次要求当前 Release 已确认发送。");
-      assertReducer(RECEIPT_STATUSES.includes(state.receipt.status), "CHG 变更轮次要求外部 receipt 证据。");
       if (state.active_change) state.change_history.push(state.active_change);
       archiveCurrentReleaseRound(state);
       resetDownstream(state);
@@ -942,6 +889,11 @@ function assertArtifactPrefix(event, prefix, { requireAtLeastOne = true } = {}) 
   if (event.artifacts.some((artifact) => !artifact.path.startsWith(prefix))) fail(`${event.type} artifacts 必须全部位于 ${prefix}`, { code: "event-artifacts" });
 }
 
+function assertNoExplorationArtifacts(records, label) {
+  const exploration = records.filter((record) => record.path === "draft/exploration" || record.path.startsWith("draft/exploration/"));
+  if (exploration.length) fail(`${label} 不能绑定探索产物。`, { code: "candidate-reference", details: exploration.map((record) => record.path) });
+}
+
 function assertEventRole(event, roles) {
   if (!roles.includes(event.actor.role)) fail(`${event.type} actor role 必须为 ${roles.join(" | ")}。`, { code: "event-actor" });
 }
@@ -973,19 +925,6 @@ const EVENT_CONTRACTS = Object.freeze({
     },
     artifacts: (event) => assertArtifactPaths(event, []),
   },
-  "v1-imported": {
-    roles: ["pm-agent", "product-owner"],
-    payload(payload) {
-      assertSha(payload.source_sha256, "source_sha256");
-      validateMigrationReport(payload.migration_report);
-    },
-    artifacts(event) {
-      assertArtifactPaths(event, ["source/v1-START-HERE.md", "source/v1-migration-report.json"]);
-      const byPath = new Map(event.artifacts.map((artifact) => [artifact.path, artifact.sha256]));
-      if (byPath.get("source/v1-START-HERE.md") !== event.payload.source_sha256) fail("V1 source artifact hash 与 payload 不一致。", { code: "event-artifacts" });
-      if (byPath.get("source/v1-migration-report.json") !== sha256Bytes(stableJson(event.payload.migration_report, true))) fail("V1 migration report artifact hash 与 payload 不一致。", { code: "event-artifacts" });
-    },
-  },
   "brainstorm-patch-recorded": {
     roles: ["pm-agent", "product-owner"],
     payload(payload) {
@@ -1000,7 +939,10 @@ const EVENT_CONTRACTS = Object.freeze({
   "definition-approved": {
     roles: ["product-owner"],
     payload: (payload) => assertNonEmptyString(payload.approval_evidence, "approval_evidence"),
-    artifacts: (event) => assertArtifactPrefix(event, "draft/"),
+    artifacts(event) {
+      assertArtifactPrefix(event, "draft/");
+      assertNoExplorationArtifacts(event.artifacts, "Definition approval");
+    },
   },
   "brief-approved": {
     roles: ["product-owner"],
@@ -1010,6 +952,7 @@ const EVENT_CONTRACTS = Object.freeze({
     },
     artifacts(event) {
       assertArtifactPrefix(event, "draft/");
+      assertNoExplorationArtifacts(event.artifacts, "Brief approval");
       if (event.artifacts.some((artifact) => artifact.path === "draft/experience/manifest.md")) {
         fail("Brief approval 不能绑定后续生成的 draft/experience/manifest.md；请在 approve-brief 后生成并在 preview approval 时绑定。", { code: "event-artifacts" });
       }
@@ -1026,6 +969,7 @@ const EVENT_CONTRACTS = Object.freeze({
     },
     artifacts(event) {
       assertArtifactPrefix(event, "draft/");
+      assertNoExplorationArtifacts(event.artifacts, "Preview approval");
       if (!event.artifacts.some((artifact) => artifact.path === "draft/experience/manifest.md")) {
         fail("Preview approval 必须绑定 draft/experience/manifest.md。", { code: "candidate-reference" });
       }
@@ -1152,6 +1096,8 @@ const EVENT_CONTRACTS = Object.freeze({
       assertSha(payload.manifest_sha256, "manifest_sha256");
       assertIdentifier(payload.candidate_id, "CAND-", "candidate_id");
       assertSha(payload.candidate_manifest_sha256, "candidate_manifest_sha256");
+      assertIdentifier(payload.review_id, "REV-", "review_id");
+      assertSha(payload.review_report_sha256, "review_report_sha256");
       if (payload.change_id !== null) assertIdentifier(payload.change_id, "CHG-", "change_id");
     },
     artifacts(event) {
@@ -1163,6 +1109,9 @@ const EVENT_CONTRACTS = Object.freeze({
       assertReducer(Boolean(state.candidate), "没有当前 Candidate。");
       assertReducer(event.payload.candidate_id === state.candidate.candidate_id, "Release Candidate ID 漂移。");
       assertReducer(event.payload.candidate_manifest_sha256 === state.candidate.manifest_sha256, "Release Candidate hash 漂移。");
+      assertReducer(Boolean(state.review), "Release 缺少当前 Review。");
+      assertReducer(event.payload.review_id === state.review.review_id, "Release Review ID 漂移。");
+      assertReducer(state.review.artifacts.some((artifact) => artifact.sha256 === event.payload.review_report_sha256), "Release Review report hash 漂移。");
       assertReducer(event.payload.change_id === (state.active_change?.change_id ?? null), "Release Change binding 漂移。");
       assertReducer(![state.release, ...state.release_history].filter(Boolean).some((release) => samePortableIdentity(release.release_id, event.payload.release_id)), "Release ID 已在历史中使用。", "identity-reuse");
     },
@@ -1297,7 +1246,7 @@ async function readEventFiles(root) {
   try {
     entries = await readdir(eventsDir, { withFileTypes: true });
   } catch (error) {
-    if (error?.code === "ENOENT") fail("缺少 events/；可能是未迁移的 V1 Delivery。", { code: "migration-required" });
+    if (error?.code === "ENOENT") fail("缺少当前 schema 所需的 events/。", { code: "event-directory" });
     throw error;
   }
   const unexpected = entries.filter((entry) => !entry.isFile() || !/^\d{6}-[a-z0-9-]+\.json$/.test(entry.name));
@@ -1390,6 +1339,8 @@ async function validateDefinitionExperienceRequirements(root, artifacts) {
     requireResolvedMarkdownField(text, /^- Required (?:shared )?behavior coverage[：:]\s*(.+)$/mu, "Definition Experience behavior coverage", "definition-experience-requirements");
     requireResolvedMarkdownField(text, /^- Required roles \/ pages \/ states[：:]\s*(.+)$/mu, "Definition Experience roles/pages/states", "definition-experience-requirements");
     requireResolvedMarkdownField(text, /^- Required journey closure[：:]\s*(.+)$/mu, "Definition journey closure", "definition-experience-requirements");
+    requireResolvedMarkdownField(text, /^- Prototype readiness walkthrough[：:]\s*(.+)$/mu, "Definition prototype readiness walkthrough", "definition-experience-requirements");
+    requireResolvedMarkdownField(text, /^- Unresolved prototype blockers[：:]\s*(.+)$/mu, "Definition unresolved prototype blockers", "definition-experience-requirements");
   }
   if (!contractCount) fail("Definition approval 缺少 Experience requirements 合同。", { code: "definition-experience-requirements" });
 }
@@ -1476,6 +1427,8 @@ async function validateManifestJourneyEvidence(root, artifacts) {
   requireResolvedMarkdownField(text, /^- Journey closure read-back[：:]\s*(.+)$/mu, "Experience journey closure read-back", "experience-journey-evidence");
   requireResolvedMarkdownField(text, /^- Dangling affordances[：:]\s*(.+)$/mu, "Experience dangling-affordance audit", "experience-journey-evidence");
   requireResolvedMarkdownField(text, /^- Re-entry \/ retrieval coverage[：:]\s*(.+)$/mu, "Experience re-entry/retrieval evidence", "experience-journey-evidence");
+  requireResolvedMarkdownField(text, /^- Design gap sweep[：:]\s*(.+)$/mu, "Experience design-gap sweep", "experience-journey-evidence");
+  requireResolvedMarkdownField(text, /^- Unresolved design gaps[：:]\s*(.+)$/mu, "Experience unresolved design gaps", "experience-journey-evidence");
 }
 
 function assertArtifactsUnder(records, prefix, label) {
@@ -1528,36 +1481,62 @@ function parseCandidateReference(line, sourcePath, lineNumber) {
   return { kind: match[1], rel };
 }
 
-async function validateCandidateDraftReferences(root, state) {
+function bundleEvidenceLocators(text) {
+  const paths = [];
+  for (const match of text.matchAll(/`(evidence\/[^`#]+\.md)(?:#[^`]*)?`/gu)) {
+    paths.push(normalizeRelative(match[1], "Candidate evidence locator"));
+  }
+  return [...new Set(paths)];
+}
+
+async function candidateSelection(root, state) {
   const briefPath = "draft/experience/brief.md";
   const manifestPath = "draft/experience/manifest.md";
+  const definitionArtifacts = new Set((state.approvals.definition?.artifacts ?? []).map((artifact) => artifact.path));
   const briefArtifacts = new Set((state.approvals.brief?.artifacts ?? []).map((artifact) => artifact.path));
   const previewArtifacts = new Set((state.approvals.preview?.artifacts ?? []).map((artifact) => artifact.path));
   if (!briefArtifacts.has(briefPath)) fail(`Brief approval 必须绑定 ${briefPath}`, { code: "candidate-reference" });
   if (!previewArtifacts.has(manifestPath)) fail(`Preview approval 必须绑定 ${manifestPath}`, { code: "candidate-reference" });
 
-  const { target: draftRoot } = await resolveInside(root, "draft", { expectedType: "directory" });
-  const markdownFiles = (await walkFiles(draftRoot)).filter((file) => file.rel.endsWith(".md") && file.size <= 5 * 1024 * 1024);
-  const manifestReferences = new Set();
-  for (const file of markdownFiles) {
-    const text = await readFile(file.full, "utf8");
-    for (const [index, line] of text.split(/\r?\n/).entries()) {
-      const reference = parseCandidateReference(line, file.rel, index + 1);
-      if (reference) {
-        await resolveInside(root, `draft/${reference.rel}`, { expectedType: "file" });
-        if (file.rel === "experience/manifest.md" && reference.kind === "artifact") manifestReferences.add(reference.rel);
-      }
+  const selectedPaths = new Set([...definitionArtifacts, ...briefArtifacts, ...previewArtifacts]);
+  assertNoExplorationArtifacts([...selectedPaths].map((artifactPath) => ({ path: artifactPath })), "Candidate selection");
+  if ([...selectedPaths].some((artifactPath) => !artifactPath.startsWith("draft/"))) fail("Candidate selection 只能来自 draft/ approval artifacts。", { code: "candidate-reference" });
+
+  for (const artifactPath of definitionArtifacts) {
+    if (!artifactPath.endsWith(".md")) continue;
+    const text = await readArtifactText(root, artifactPath);
+    for (const evidencePath of bundleEvidenceLocators(text)) {
+      const draftPath = `draft/${evidencePath}`;
+      if (!definitionArtifacts.has(draftPath)) fail(`Definition approval 必须显式绑定引用证据：${draftPath}`, { code: "candidate-reference" });
     }
   }
 
-  for (const required of ["experience/brief.md", "experience/manifest.md"]) {
-    if (!manifestReferences.has(required)) fail(`Experience manifest 缺少 Candidate artifact：${required}`, { code: "candidate-reference" });
+  const expectedExperience = [...new Set([...briefArtifacts, ...previewArtifacts].map((artifactPath) => artifactPath.slice("draft/".length)))].sort();
+  const manifestReferences = new Set();
+  const manifestText = await readArtifactText(root, manifestPath);
+  for (const [index, line] of manifestText.split(/\r?\n/).entries()) {
+    const reference = parseCandidateReference(line, "experience/manifest.md", index + 1);
+    if (reference?.kind === "artifact") {
+      await resolveInside(root, `draft/${reference.rel}`, { expectedType: "file" });
+      manifestReferences.add(reference.rel);
+    }
   }
-  for (const artifact of [...briefArtifacts, ...previewArtifacts]) {
-    if (!artifact.startsWith("draft/")) continue;
-    const bundleRelative = artifact.slice("draft/".length);
-    if (!manifestReferences.has(bundleRelative)) fail(`Experience manifest 未列出已批准 artifact：${bundleRelative}`, { code: "candidate-reference" });
+  const declaredExperience = [...manifestReferences].sort();
+  if (stableJson(declaredExperience) !== stableJson(expectedExperience)) {
+    fail("Experience manifest 的 Candidate artifact 必须精确匹配当前 Brief/preview approval artifacts。", {
+      code: "candidate-reference",
+      details: { expected: expectedExperience, actual: declaredExperience },
+    });
   }
+
+  const files = [];
+  for (const draftPath of [...selectedPaths].sort((left, right) => left.localeCompare(right, "en"))) {
+    const bundleRelative = draftPath.slice("draft/".length);
+    const { target } = await resolveInside(root, draftPath, { expectedType: "file" });
+    const metadata = await lstat(target);
+    files.push({ rel: bundleRelative, full: target, size: metadata.size });
+  }
+  return files;
 }
 
 async function scanFileForSecrets(file) {
@@ -1568,20 +1547,38 @@ async function scanFileForSecrets(file) {
   assertNoSecrets(bytes.toString("utf8"), `快照文件 ${file.rel}`);
 }
 
-async function buildSnapshot({ sourceDir, tempDir, kind, id, deliveryId, sourceBinding }) {
-  const sourceFiles = (await walkFiles(sourceDir)).filter((file) => !(kind === "release" && file.rel === "MANIFEST.json"));
+async function buildSnapshot({ sourceDir, selectedFiles = null, supplementalFiles = [], tempDir, kind, id, deliveryId, sourceBinding, manifestExtra = {} }) {
+  const baseFiles = selectedFiles ?? await walkFiles(sourceDir);
+  const sourceFiles = [...baseFiles.filter((file) => !(kind === "release" && file.rel === "MANIFEST.json")), ...supplementalFiles]
+    .map((file) => ({ ...file, rel: normalizeRelative(file.rel, "snapshot path") }))
+    .sort((left, right) => left.rel.localeCompare(right.rel, "en"));
+  const portablePaths = new Set();
+  for (const file of sourceFiles) {
+    const portable = portablePathKey(file.rel);
+    if (portablePaths.has(portable)) fail(`快照输入路径重复：${file.rel}`, { code: "non-portable-path" });
+    portablePaths.add(portable);
+  }
   const total = sourceFiles.reduce((sum, file) => sum + file.size, 0);
   if (total > 200 * 1024 * 1024) fail("快照总大小超过 200 MiB。", { code: "snapshot-size" });
   await mkdir(tempDir, { recursive: false });
   const files = [];
   try {
     for (const file of sourceFiles) {
-      await scanFileForSecrets(file);
       const destination = path.join(tempDir, ...file.rel.split("/"));
       await mkdir(path.dirname(destination), { recursive: true });
-      await copyFile(file.full, destination, fsConstants.COPYFILE_EXCL);
+      let sourceHash;
+      if (Object.hasOwn(file, "content")) {
+        const bytes = Buffer.isBuffer(file.content) ? file.content : Buffer.from(String(file.content));
+        if (bytes.length !== file.size) fail(`生成快照文件大小不一致：${file.rel}`, { code: "snapshot-size" });
+        if (!bytes.includes(0)) assertNoSecrets(bytes.toString("utf8"), `快照文件 ${file.rel}`);
+        await writeExclusiveComplete(destination, bytes);
+        sourceHash = sha256Bytes(bytes);
+      } else {
+        await scanFileForSecrets(file);
+        await copyFile(file.full, destination, fsConstants.COPYFILE_EXCL);
+        sourceHash = await sha256File(file.full);
+      }
       const copiedHash = await sha256File(destination);
-      const sourceHash = await sha256File(file.full);
       if (copiedHash !== sourceHash) fail(`快照回读 hash 不一致：${file.rel}`, { exitCode: EXIT.INTEGRITY, code: "snapshot-readback" });
       files.push({ path: file.rel, sha256: copiedHash, size: file.size });
     }
@@ -1592,6 +1589,7 @@ async function buildSnapshot({ sourceDir, tempDir, kind, id, deliveryId, sourceB
       id,
       delivery_id: deliveryId,
       source: sourceBinding,
+      ...manifestExtra,
       files,
       aggregate_sha256: sha256Bytes(stableJson(files)),
     };
@@ -1602,6 +1600,52 @@ async function buildSnapshot({ sourceDir, tempDir, kind, id, deliveryId, sourceB
     await rm(tempDir, { recursive: true, force: true });
     throw error;
   }
+}
+
+function developerHandoffContent({ state, releaseId, candidateManifest, reviewLocalPath }) {
+  const candidatePaths = new Set(candidateManifest.files.map((record) => record.path));
+  const definitionPaths = [...new Set((state.approvals.definition?.artifacts ?? [])
+    .map((artifact) => artifact.path.slice("draft/".length))
+    .filter((artifactPath) => candidatePaths.has(artifactPath)))].sort();
+  const experiencePaths = [...new Set([...(state.approvals.brief?.artifacts ?? []), ...(state.approvals.preview?.artifacts ?? [])]
+    .map((artifact) => artifact.path.slice("draft/".length))
+    .filter((artifactPath) => candidatePaths.has(artifactPath)))].sort();
+  const implementationTargets = experiencePaths.filter((artifactPath) => /(?:\.pen$|\/previews\/|readback)/iu.test(artifactPath));
+  const list = (items) => items.length ? items.map((item) => `- \`${item}\``) : ["- none"];
+  return [
+    `# Developer handoff: ${state.title}`,
+    "",
+    "## Status",
+    "",
+    `- Release: \`${releaseId}\``,
+    `- Candidate: \`${state.candidate.candidate_id}\``,
+    "- Local delivery: complete",
+    "- External sending: not implied or performed by Release creation",
+    "- Production deployment: not performed",
+    "",
+    "This directory is ready for the user to copy, compress, or send manually.",
+    "",
+    "## Authoritative Definition files",
+    "",
+    ...list(definitionPaths),
+    "",
+    "## Authoritative Experience files",
+    "",
+    ...list(experiencePaths),
+    "",
+    "## Implementation targets",
+    "",
+    ...list(implementationTargets),
+    "",
+    "## Review",
+    "",
+    `- Review ID: \`${state.review.review_id}\``,
+    `- Mode / outcome: \`${state.review.mode}\` / \`${state.review.outcome}\``,
+    `- Report: \`${reviewLocalPath}\``,
+    "",
+    "Read the Review report and `experience/manifest.md` for limitations, accepted risks, evidence method, and preview/read-back details. Historical or exploratory Draft artifacts are intentionally excluded.",
+    "",
+  ].join("\n");
 }
 
 async function verifyManifest(root, manifestRelative, expectedKind, expected = {}) {
@@ -1620,6 +1664,16 @@ async function verifyManifest(root, manifestRelative, expectedKind, expected = {
   const issues = [];
   if (!isPlainObject(manifest) || manifest.schema_version !== SCHEMA_VERSION || manifest.runtime_version !== RUNTIME_VERSION || manifest.kind !== expectedKind || !Array.isArray(manifest.files)) {
     return [{ kind: "manifest-schema", path: rel }];
+  }
+  if (expectedKind === "candidate" && (!isPlainObject(manifest.selection) || manifest.selection.mode !== "approval-bound")) {
+    issues.push({ kind: "manifest-selection", path: rel });
+  }
+  if (expectedKind === "release") {
+    if (manifest.release_format !== "developer-handoff") issues.push({ kind: "manifest-release-format", path: rel });
+    const requiredFiles = ["DEVELOPER-HANDOFF.md", expected.reviewId ? `review/${expected.reviewId}.md` : null].filter(Boolean);
+    for (const required of requiredFiles) {
+      if (!manifest.files.some((record) => record?.path === required)) issues.push({ kind: "manifest-release-file", path: rel, required });
+    }
   }
   if (expected.id && manifest.id !== expected.id) issues.push({ kind: "manifest-id", path: rel, expected: expected.id, actual: manifest.id });
   if (expected.deliveryId && manifest.delivery_id !== expected.deliveryId) issues.push({ kind: "manifest-delivery", path: rel, expected: expected.deliveryId, actual: manifest.delivery_id });
@@ -1654,14 +1708,19 @@ async function verifyManifest(root, manifestRelative, expectedKind, expected = {
   return issues;
 }
 
-async function compareDraftToCandidate(root, candidate) {
+async function compareDraftToCandidate(root, candidate, state) {
   const manifestPath = `${candidate.path}/MANIFEST.json`;
   const { target } = await resolveInside(root, manifestPath);
   const manifest = JSON.parse(await readFile(target, "utf8"));
-  const { target: draftRoot } = await resolveInside(root, "draft", { expectedType: "directory" });
-  const draftFiles = await walkFiles(draftRoot);
   const current = [];
-  for (const file of draftFiles) current.push({ path: file.rel, sha256: await sha256File(file.full), size: file.size });
+  let selected;
+  try {
+    selected = await candidateSelection(root, state);
+  } catch (error) {
+    if (error instanceof WorkflowError) return [{ kind: "draft-candidate-selection", candidate_id: candidate.candidate_id, message: error.message }];
+    throw error;
+  }
+  for (const file of selected) current.push({ path: file.rel, sha256: await sha256File(file.full), size: file.size });
   return stableJson(current) === stableJson(manifest.files) ? [] : [{ kind: "draft-candidate-drift", candidate_id: candidate.candidate_id }];
 }
 
@@ -1698,7 +1757,7 @@ export async function validateStateIntegrity(root, state) {
     if (!manifestIssues.length) {
       const manifestSha = await sha256File(path.join(root, ...normalizeRelative(manifestPath).split("/")));
       if (manifestSha !== candidate.manifest_sha256) issues.push({ scope, kind: "manifest-hash", expected: candidate.manifest_sha256, actual: manifestSha });
-      if (current) issues.push(...(await compareDraftToCandidate(root, candidate)).map((issue) => ({ scope, ...issue })));
+      if (current) issues.push(...(await compareDraftToCandidate(root, candidate, state)).map((issue) => ({ scope, ...issue })));
     }
   }
 
@@ -1721,9 +1780,12 @@ export async function validateStateIntegrity(root, state) {
       source: {
         candidate_id: release.candidate_id,
         candidate_manifest_sha256: release.candidate_manifest_sha256,
+        review_id: release.review_id,
+        review_report_sha256: release.review_report_sha256,
         handoff_event: release.handoff_event,
         change_id: release.change_id,
       },
+      reviewId: release.review_id,
     });
     issues.push(...manifestIssues.map((issue) => ({ scope, ...issue })));
     if (!manifestIssues.length) {
@@ -1756,7 +1818,7 @@ function publicProjection(state) {
 }
 
 export function renderStartHere(state) {
-  const routeLabels = { definition: "定义", experience: "体验", candidate: "候选版本", handoff: "交付确认", release: "发布准备", receipt: "接收确认", complete: "完成" };
+  const routeLabels = { definition: "定义", experience: "体验", candidate: "候选版本", handoff: "交付确认", release: "本地交付准备", complete: "完成" };
   const lines = [
     `# START HERE：${state.title ?? state.delivery_id}`,
     "",
@@ -1780,8 +1842,8 @@ export function renderStartHere(state) {
     `- Review：${state.review ? `${state.review.review_id} / ${state.review.mode} / ${state.review.outcome}` : "none"}`,
     `- Handoff confirmation：${state.handoff?.event_id ?? "pending"}`,
     `- Release：${state.release?.release_id ?? "none"}`,
-    `- Sending：${state.sending.status}`,
-    `- Receipt：${state.receipt.status}`,
+    `- Optional sending audit：${state.sending.status}`,
+    `- Optional receipt audit：${state.receipt.status}`,
     `- Change round：${state.active_change?.change_id ?? "none"}`,
     "",
     "## 可靠性边界",
@@ -1912,52 +1974,6 @@ function helpObject(targetCommand = undefined) {
   };
 }
 
-function extractV1Field(text, label) {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = text.match(new RegExp(`^- ${escaped}：(.+)$`, "m"));
-  return match?.[1]?.trim() ?? null;
-}
-
-function stripTicks(value) {
-  return value?.replaceAll("`", "").trim() ?? null;
-}
-
-export function parseV1StartHere(text) {
-  const title = text.match(/^# START HERE：(.+)$/m)?.[1]?.trim() ?? null;
-  const phaseRaw = stripTicks(extractV1Field(text, "Phase"));
-  const phase = phaseRaw?.split(/\s*\|\s*/)[0]?.trim();
-  const definitionApproval = extractV1Field(text, "Definition approval words / date");
-  const candidateGate = stripTicks(extractV1Field(text, "Candidate gate result / date"));
-  const reviewStatus = stripTicks(extractV1Field(text, "Review status"));
-  const releaseSent = stripTicks(extractV1Field(text, "Release sent / date"));
-  const receiptStatus = stripTicks(extractV1Field(text, "Receipt status"));
-  const owner = extractV1Field(text, "PM / business Owner");
-  const contradictions = [];
-  const missing = [];
-  if (!title) missing.push("title");
-  if (!owner || /\{.+\}/.test(owner)) missing.push("owner");
-  if (!phase || !["definition", "experience", "candidate", "review", "handoff", "release", "receipt", "change", "complete"].includes(phase)) missing.push("known phase");
-  if (["candidate", "review", "handoff", "release", "receipt", "complete"].includes(phase) && !candidateGate?.startsWith("passed")) contradictions.push("advanced phase lacks passed Candidate gate");
-  if (["candidate", "review", "handoff", "release", "receipt", "complete"].includes(phase)) contradictions.push("V1 Candidate identity cannot be mapped safely to independent CAND-* identity");
-  if (receiptStatus?.startsWith("acknowledged") && !releaseSent?.startsWith("yes")) contradictions.push("acknowledged receipt without confirmed send");
-  if (phase === "complete" && !receiptStatus?.startsWith("acknowledged")) contradictions.push("complete phase without acknowledged receipt");
-  if (reviewStatus?.startsWith("passed") && !candidateGate?.startsWith("passed")) contradictions.push("passed Review without passed Candidate");
-  if (phase && !["definition", "experience"].includes(phase)) contradictions.push("V1 phase cannot be mapped safely without independent V2 identities");
-  return {
-    schema: "v1-start-here-known-fields",
-    title,
-    owner,
-    source_phase: phase,
-    mapped_phase: "definition",
-    definition_approval_classification: "not-evaluated",
-    explicit_evidence: { definition_approval: definitionApproval },
-    observed: { candidate_gate: candidateGate, review_status: reviewStatus, release_sent: releaseSent, receipt_status: receiptStatus },
-    contradictions,
-    missing,
-    can_apply: contradictions.length === 0 && missing.length === 0,
-  };
-}
-
 async function initCommand(options) {
   const rootAbsolute = path.resolve(requireOption(options, "root"));
   const deliveryId = assertIdentifier(requireOption(options, "delivery-id"), "DEL-", "--delivery-id");
@@ -1973,7 +1989,7 @@ async function initCommand(options) {
   if (!rootMetadata.isDirectory()) fail(`Delivery 根路径不是目录：${rootAbsolute}`, { code: "invalid-root" });
   const root = await realpath(rootAbsolute);
   const existing = await readdir(root);
-  if (existing.length) fail("Delivery 根目录不是空目录；V1 Delivery 请使用 migrate-v1。", { exitCode: EXIT.CONFLICT, code: "root-not-empty", details: existing.sort() });
+  if (existing.length) fail("Delivery 根目录必须为空。旧格式目录不受支持，请使用新的空目录。", { exitCode: EXIT.CONFLICT, code: "root-not-empty", details: existing.sort() });
   const releaseLock = await acquireLock(root, "init");
   try {
     for (const directory of CONTROLLED_DIRECTORIES) await mkdir(path.join(root, directory), { recursive: false });
@@ -1988,59 +2004,9 @@ async function initCommand(options) {
   }
 }
 
-async function migrateV1Command(options) {
-  const root = await rootRealPath(requireOption(options, "root"));
-  await validateControlledDirectories(root);
-  if (await lstatOrNull(path.join(root, "events"))) fail("该 Delivery 已有 V2 events/。", { exitCode: EXIT.CONFLICT, code: "already-migrated" });
-  const { target: startPath } = await resolveInside(root, "START-HERE.md", { expectedType: "file" });
-  const sourceBytes = await readFile(startPath);
-  const report = parseV1StartHere(sourceBytes.toString("utf8"));
-  if (!report.can_apply) fail("V1 migration 发现矛盾或缺项；不会推断批准。", { code: "migration-ambiguous", details: report });
-  if (Boolean(options["dry-run"]) === Boolean(options.apply)) fail("migrate-v1 必须且只能选择 --dry-run 或 --apply。");
-  if (!options.apply) return { ok: true, command: "migrate-v1", dry_run: true, report };
-  if (expectedRevision(options) !== 0) fail("migrate-v1 apply 的 --expect-revision 必须为 0。", { exitCode: EXIT.CONFLICT, code: "revision-conflict" });
-  for (const relative of ["source/v1-START-HERE.md", "source/v1-migration-report.json"]) {
-    if (await lstatOrNull(path.join(root, ...relative.split("/")))) fail(`迁移目标已存在：${relative}`, { exitCode: EXIT.CONFLICT, code: "migration-target-exists" });
-  }
-  const reportBytes = stableJson(report, true);
-  const artifacts = [
-    { path: "source/v1-START-HERE.md", sha256: sha256Bytes(sourceBytes) },
-    { path: "source/v1-migration-report.json", sha256: sha256Bytes(reportBytes) },
-  ];
-  const deliveryId = assertIdentifier(`DEL-${path.basename(root).toLowerCase().replace(/[^a-z0-9-]/g, "-")}`, "DEL-", "migration delivery_id");
-  const state = initialState(deliveryId);
-  const event = makeEvent({
-    state,
-    type: "v1-imported",
-    actor: actorFrom(options),
-    artifacts,
-    payload: { source_sha256: sha256Bytes(sourceBytes), migration_report: report },
-  });
-  const releaseLock = await acquireLock(root, "migrate-v1");
-  try {
-    await projectionWriteTargets(root);
-    for (const directory of CONTROLLED_DIRECTORIES) {
-      if (!await lstatOrNull(path.join(root, directory))) await mkdir(path.join(root, directory), { recursive: false });
-    }
-    await validateControlledDirectories(root, { requireAll: true });
-    const { target: preservedPath } = await resolveInside(root, "source/v1-START-HERE.md", { mustExist: false });
-    const { target: reportPath } = await resolveInside(root, "source/v1-migration-report.json", { mustExist: false });
-    await writeExclusiveComplete(preservedPath, sourceBytes);
-    await writeExclusiveComplete(reportPath, reportBytes);
-    const nextState = reduceEvent(state, event);
-    const hash = await appendEvent(root, event);
-    nextState.last_event_sha256 = hash;
-    await writeProjections(root, nextState);
-    return { ok: true, command: "migrate-v1", dry_run: false, event_id: event.event_id, revision: 1, report, state: publicProjection(nextState) };
-  } finally {
-    await releaseLock();
-  }
-}
-
 async function executeCommand(command, options) {
   if (command === "help") return { ok: true, command: "help", ...helpObject(options.targetCommand) };
   if (command === "init") return initCommand(options);
-  if (command === "migrate-v1") return migrateV1Command(options);
   if (command === "doctor") {
     const nodeMajor = Number(process.versions.node.split(".")[0]);
     if (nodeMajor < MINIMUM_NODE_MAJOR) fail(`Node ${MINIMUM_NODE_MAJOR}+ required; current ${process.versions.node}.`, { exitCode: EXIT.UNAVAILABLE, code: "node-version" });
@@ -2170,7 +2136,7 @@ async function executeCommand(command, options) {
   if (command === "freeze-candidate") {
     return transition(rootOption, options, command, async ({ root, state, integrity }) => {
       assertNoIntegrityIssues(integrity, ["approval:"]);
-      await validateCandidateDraftReferences(root, state);
+      const selectedFiles = await candidateSelection(root, state);
       const id = options["candidate-id"] ? assertIdentifier(options["candidate-id"], "CAND-", "--candidate-id") : `CAND-${deliverySlug(state.delivery_id)}-r${state.candidate_history.length + (state.candidate ? 2 : 1)}`;
       const finalRel = `candidates/${id}`;
       if (await pathExistsInside(root, finalRel)) fail(`Candidate 已存在：${id}`, { exitCode: EXIT.CONFLICT, code: "snapshot-exists" });
@@ -2180,6 +2146,7 @@ async function executeCommand(command, options) {
       const { target: draftRoot } = await resolveInside(root, "draft", { expectedType: "directory" });
       const built = await buildSnapshot({
         sourceDir: draftRoot,
+        selectedFiles,
         tempDir: tempPath,
         kind: "candidate",
         id,
@@ -2192,6 +2159,7 @@ async function executeCommand(command, options) {
           change_id: state.active_change?.change_id ?? null,
           change_event: state.active_change?.event_id ?? null,
         },
+        manifestExtra: { selection: { mode: "approval-bound" } },
       });
       return {
         event: {
@@ -2268,15 +2236,29 @@ async function executeCommand(command, options) {
   if (command === "create-release") {
     return transition(rootOption, options, command, async ({ root, state, integrity }) => {
       assertNoIntegrityIssues(integrity, ["candidate", "review", "approval:"]);
-      const id = options["release-id"] ? assertIdentifier(options["release-id"], "REL-", "--release-id") : `REL-${deliverySlug(state.delivery_id)}-v${state.release_history.length + (state.release ? 2 : 1)}`;
+      const releaseSequence = state.release_history.length + (state.release ? 2 : 1);
+      const id = options["release-id"] ? assertIdentifier(options["release-id"], "REL-", "--release-id") : `REL-${deliverySlug(state.delivery_id)}-${String(releaseSequence).padStart(3, "0")}`;
       const finalRel = `releases/${id}`;
       if (await pathExistsInside(root, finalRel)) fail(`Release 已存在：${id}`, { exitCode: EXIT.CONFLICT, code: "snapshot-exists" });
       const { target: finalPath } = await resolveInside(root, finalRel, { mustExist: false });
       const { target: candidateRoot } = await resolveInside(root, state.candidate.path, { expectedType: "directory" });
+      const { target: candidateManifestPath } = await resolveInside(root, `${state.candidate.path}/MANIFEST.json`, { expectedType: "file" });
+      const candidateManifest = JSON.parse(await readFile(candidateManifestPath, "utf8"));
+      const reviewArtifact = state.review?.artifacts.find((artifact) => artifact.path === state.review.path);
+      if (!reviewArtifact) fail("Release 缺少当前 Review report artifact。", { code: "candidate-reference" });
+      const { target: reviewPath } = await resolveInside(root, reviewArtifact.path, { expectedType: "file" });
+      const reviewMetadata = await lstat(reviewPath);
+      const reviewLocalPath = `review/${state.review.review_id}.md`;
+      const handoffText = developerHandoffContent({ state, releaseId: id, candidateManifest, reviewLocalPath });
+      const handoffBytes = Buffer.from(handoffText);
       const tempRel = `releases/.tmp-${randomUUID()}`;
       const { target: tempPath } = await resolveInside(root, tempRel, { mustExist: false });
       const built = await buildSnapshot({
         sourceDir: candidateRoot,
+        supplementalFiles: [
+          { rel: reviewLocalPath, full: reviewPath, size: reviewMetadata.size },
+          { rel: "DEVELOPER-HANDOFF.md", content: handoffBytes, size: handoffBytes.length },
+        ],
         tempDir: tempPath,
         kind: "release",
         id,
@@ -2284,9 +2266,12 @@ async function executeCommand(command, options) {
         sourceBinding: {
           candidate_id: state.candidate.candidate_id,
           candidate_manifest_sha256: state.candidate.manifest_sha256,
+          review_id: state.review.review_id,
+          review_report_sha256: reviewArtifact.sha256,
           handoff_event: state.handoff.event_id,
           change_id: state.active_change?.change_id ?? null,
         },
+        manifestExtra: { release_format: "developer-handoff" },
       });
       return {
         event: {
@@ -2299,6 +2284,8 @@ async function executeCommand(command, options) {
             manifest_sha256: built.manifestSha,
             candidate_id: state.candidate.candidate_id,
             candidate_manifest_sha256: state.candidate.manifest_sha256,
+            review_id: state.review.review_id,
+            review_report_sha256: reviewArtifact.sha256,
             change_id: state.active_change?.change_id ?? null,
           },
         },
@@ -2340,7 +2327,6 @@ function plainMessage(result) {
   if (result.command === "help" && result.target_command) return `PM Workflow Runtime ${RUNTIME_VERSION}\n用法：${result.usage}\n选项：${result.options.join(", ")}`;
   if (result.command === "help") return `PM Workflow Runtime ${RUNTIME_VERSION}\n命令：${result.commands.join(", ")}`;
   if (result.state) return `阶段：${result.state.phase}\n阻塞：${result.state.blocker}\n下一步：${result.state.next_action}`;
-  if (result.report) return `阶段：V1 迁移检查\n阻塞：none\n下一步：${result.dry_run ? "审阅迁移报告后用 --apply 明确应用。" : "按生成状态继续。"}`;
   return `阶段：${result.command}\n阻塞：none\n下一步：按当前状态继续。`;
 }
 

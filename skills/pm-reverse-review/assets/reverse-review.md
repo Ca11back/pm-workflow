@@ -19,6 +19,7 @@
 - Review mode / date：`self-check | isolated-same-model | independent-model | human` / {date}
 - Source session/model / reviewer session/model：{known identity or `unknown`} / {known identity or `unknown`}
 - Reviewed manifest：{exact files and versions}
+- Candidate scope hygiene：{physical files exactly match manifest; approval-bound Experience artifacts exactly match the Experience manifest declaration; no exploration/failed/superseded/historical files}
 - Prior report/findings for re-review：{paths/FND IDs or none}
 
 ## Result

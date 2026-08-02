@@ -1,13 +1,13 @@
 ---
 name: pm-handoff
-description: Continue a PM Workflow V2 Delivery after a hash-bound Review result, recording Finding decisions or Draft returns, explicit product-owner development handoff, immutable REL-* preparation, honest attempted or sent-confirmed evidence, and external-recipient acknowledged, accepted, or rejected receipt. Use for Review resolution, Handoff, Release, send, receipt, or released-behavior CHG-* work. Stop at every external confirmation and never fabricate Owner, sender, connector, or recipient evidence.
+description: Continue a current-schema PM Workflow Delivery after a hash-bound Review result, recording Finding decisions or Draft returns, explicit product-owner development handoff, and an immutable local REL-* developer package. Optionally record later external send/receipt audit or start released-behavior CHG-* work. Never fabricate Owner, sender, connector, or recipient evidence.
 ---
 
 # PM Handoff
 
 ## Verify the current action
 
-Resolve this Skill's sibling `scripts/pm-workflow.mjs` and run `status --json` plus `validate --json`. Continue only for generated Handoff, Release, send, receipt, or change work. Load only the exact Candidate/Review/Release and relevant reference named by the action. Never edit events, projections, Candidate, Release, or Review reports.
+Resolve this Skill's sibling `scripts/pm-workflow.mjs` and run `status --json` plus `validate --json`. Continue only for generated Handoff, local Release, explicitly requested send/receipt audit, or change work. Load only the exact Candidate/Review/Release and relevant reference named by the action. Never edit events, projections, Candidate, Release, or Review reports.
 
 ## Hand off internally
 
@@ -34,22 +34,24 @@ Only on a later explicit product-owner reply:
 1. call `confirm-handoff` with current revision, product-owner role, and exact words;
 2. call `create-release` with the returned revision and a new `REL-*` identity.
 
-The runtime copies only the confirmed Candidate files, verifies every copied hash, writes a Release manifest, rejects overwrite, and records `prepared`. File creation never means sent.
+The runtime copies only the confirmed Candidate files, the bound Review report, and a generated `DEVELOPER-HANDOFF.md`; verifies every copied hash; writes a Release manifest; and rejects overwrite. A successful local Release is the completed PM delivery result: it is ready for the user to inspect, copy, compress, or send manually, but it does not claim any external transmission or production deployment.
 
-## Record sending separately
+## Record optional distribution audit separately
 
-An authorized manual sender or connector may later call `record-send`:
+Do not ask the user to send the package and do not route to distribution by default. End after local Release creation with the exact Release path and a plain statement that the package is complete locally.
+
+Only when the user later explicitly asks to audit an external transfer may an authorized manual sender or connector call `record-send`:
 
 - use `attempted` for an honest failed/uncertain attempt;
 - use `sent-confirmed` only with recipient, channel, exact external reference, and explicit send evidence;
 - never infer sent status from a Release directory, chat intention, or PM Agent statement alone.
 
-The portable runtime does not implement a connector or perform the external write. Obtain authorization before any real external write and avoid sensitive payloads.
+The portable runtime does not implement a connector or perform the external write. Optional sending evidence never changes the already-complete PM delivery state. Obtain authorization before any real external write and avoid sensitive payloads.
 
-## Close only from external receipt
+## Record optional external receipt
 
-After `sent-confirmed`, stop for a real recipient response. Only an `external-recipient` actor may call `record-receipt` with status `acknowledged`, `accepted`, or `rejected`, plus the same recipient recorded by this round's confirmed send, external reference, and exact evidence. The PM Agent cannot acknowledge its own send, and evidence from a different recipient cannot close the Release.
+After `sent-confirmed`, and only on an explicit audit request, a real recipient may call `record-receipt`. Only an `external-recipient` actor may record `acknowledged`, `accepted`, or `rejected`, with the same recipient, external reference, and exact evidence. The PM Agent cannot acknowledge its own send, and evidence from a different recipient cannot close or alter the already-complete Release.
 
 `acknowledged` may later be refined once to `accepted` or `rejected`; terminal results cannot be overwritten. End with generated phase, blocker, and one action.
 
-For observable released-behavior change, create a separate `changes/CHG-*.md` proposal from [change-proposal.md](assets/change-proposal.md) and stop for explicit product-owner approval. Only on the later approval reply, call `start-change` with the current revision, matching `CHG-*` identity/path, exact evidence, and `product-owner` actor. Runtime binds the proposal/current Release hashes, archives that Release together with its sending/receipt evidence, resets the current delivery evidence, increments Draft revision, and routes the new round to Definition; on success, follow the internal handoff rule. Implementation-only feedback stays with engineering.
+For observable released-behavior change, create a separate `changes/CHG-*.md` proposal from [change-proposal.md](assets/change-proposal.md) and stop for explicit product-owner approval. Any current local completed Release is sufficient; external send or receipt is not required. Only on the later approval reply, call `start-change` with the current revision, matching `CHG-*` identity/path, exact evidence, and `product-owner` actor. Runtime binds the proposal/current Release hashes, archives that Release together with any optional sending/receipt evidence, resets the current delivery evidence, increments Draft revision, and routes the new round to Definition; on success, follow the internal handoff rule. Implementation-only feedback stays with engineering.

@@ -8,6 +8,8 @@
 
 List every local file bound by Brief or preview approval. These are the only manifest fields parsed by the pre-freeze reference check; keep one exact bundle-relative path per line.
 
+The list must exactly match the union of current Brief and preview approval artifacts. Do not list exploration, failed attempts, superseded prototypes, or historical previews.
+
 - Candidate artifact：`experience/brief.md`
 - Candidate artifact：`experience/manifest.md`
 - Candidate artifact：`experience/prototype.pen`
@@ -60,6 +62,8 @@ Copy every approval-bound Journey ID and its ordered unique Coverage sequence un
 - Journey closure read-back：{every Journey ID checked from entry through immediate result, later re-entry/retrieval when applicable, and recovery/terminal result}
 - Dangling affordances：{`none`, or every visible navigation/action/return label lacking a covered target and its return locator}
 - Re-entry / retrieval coverage：{Coverage IDs and Pen/reference nodes, or not applicable with reason}
+- Design gap sweep：{all approved Journeys checked once; consolidated Pen-only, Brief, and Definition gap result}
+- Unresolved design gaps：{bundle-relative return locators or `none` only after the sweep}
 - Preview file result：{exact PNG path, existence, and non-secret result}
 - Agent visual capability / inspection：`agent-visual | human-required` / {result or explicit limitation}
 - Preview presentation to Owner：`attached | rendered | local-path | unavailable` / {evidence/date}

@@ -15,11 +15,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
       - run: node -e "const fs = require('node:fs'); const actual = fs.readdirSync('scripts').sort(); const expected = ['sync-runtime.mjs']; if (JSON.stringify(actual) !== JSON.stringify(expected)) { console.error({ actual, expected }); process.exit(1); }"
       - run: node scripts/sync-runtime.mjs --check
       - run: npm run test:coverage
-      - run: python3 skills/pm-delivery/scripts/validate_delivery.py --self-test
-      - run: python3 skills/pm-delivery/scripts/test_validate_delivery.py

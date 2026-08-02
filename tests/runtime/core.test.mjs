@@ -1,8 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import {
   EXIT,
@@ -12,16 +9,12 @@ import {
   makeEvent,
   normalizeRelative,
   parseArgs,
-  parseV1StartHere,
   reduceEvent,
   renderStartHere,
   runCli,
-  sha256Bytes,
   stableJson,
   validateReviewIdentity,
 } from "../../runtime/pm-workflow.mjs";
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 test("strict arguments reject unknown, duplicate, and positional input", () => {
   assert.throws(() => parseArgs(["status", "--root", "x", "extra"]), WorkflowError);
@@ -78,29 +71,16 @@ test("event decoder rejects unknown schema and fields", () => {
   });
   assert.equal(decodeEvent(structuredClone(event)).event_id, "EVT-000001");
   assert.throws(() => decodeEvent({ ...event, schema_version: 99 }), (error) => error.exitCode === EXIT.INTEGRITY);
+  assert.throws(() => decodeEvent({ ...event, runtime_version: "0.0.0" }), (error) => error.code === "runtime-version");
   assert.throws(() => decodeEvent({ ...event, unexpected: true }), WorkflowError);
   assert.throws(() => decodeEvent({ ...event, payload: { ...event.payload, title: 42 } }), WorkflowError);
 });
 
 test("one semantic contract validates payload, actor, artifact, and path relationships for every event kind", () => {
-  const migrationReport = {
-    schema: "v1-start-here-known-fields",
-    title: "Imported",
-    owner: "Owner",
-    source_phase: "experience",
-    mapped_phase: "definition",
-    definition_approval_classification: "not-evaluated",
-    explicit_evidence: { definition_approval: "批准当前定义" },
-    observed: { candidate_gate: "pending", review_status: "not-run", release_sent: "no", receipt_status: "pending" },
-    contradictions: [],
-    missing: [],
-    can_apply: true,
-  };
   const sha = (letter) => letter.repeat(64);
   const artifact = (pathValue, hash = sha("d")) => ({ path: pathValue, sha256: hash });
   const cases = [
     { type: "created", role: "pm-agent", payload: { title: "Title", owner: "Owner" }, artifacts: [], corrupt: (payload) => { payload.title = 1; } },
-    { type: "v1-imported", role: "pm-agent", payload: { source_sha256: sha("a"), migration_report: migrationReport }, artifacts: [artifact("source/v1-START-HERE.md", sha("a")), artifact("source/v1-migration-report.json", sha256Bytes(stableJson(migrationReport, true)))], corrupt: (payload) => { delete payload.migration_report.observed.receipt_status; } },
     { type: "brainstorm-patch-recorded", role: "pm-agent", payload: { base_draft_revision: 1, decision_locator: "delivery.md#DEC-001", patch_path: "draft/patch.md" }, artifacts: [artifact("draft/patch.md")], pathField: "patch_path", corrupt: (payload) => { payload.base_draft_revision = "1"; } },
     { type: "definition-approved", role: "product-owner", payload: { approval_evidence: "批准" }, artifacts: [artifact("draft/delivery.md")], corrupt: (payload) => { payload.approval_evidence = false; } },
     { type: "brief-approved", role: "product-owner", payload: { approval_evidence: "批准", experience_route: "not-needed" }, artifacts: [artifact("draft/experience/brief.md")], corrupt: (payload) => { payload.experience_route = "unknown"; } },
@@ -110,14 +90,14 @@ test("one semantic contract validates payload, actor, artifact, and path relatio
     { type: "review-recorded", role: "reviewer", payload: { review_id: "REV-core-01", review_path: "reviews/review.md", review_mode: "self-check", outcome: "passed", candidate_id: "CAND-core-r1", candidate_manifest_sha256: sha("b"), source_session_id: "s", review_session_id: "s", source_model: "m", review_model: "m", finding_ids: [] }, artifacts: [artifact("reviews/review.md")], pathField: "review_path", corrupt: (payload) => { payload.source_session_id = 9; } },
     { type: "finding-resolution-recorded", role: "product-owner", payload: { finding_id: "FND-001", disposition: "accepted-risk", return_phase: null, resolution_evidence: "接受风险" }, artifacts: [], corrupt: (payload) => { payload.finding_id = 1; } },
     { type: "handoff-confirmed", role: "product-owner", payload: { confirmation_evidence: "确认", candidate_id: "CAND-core-r1", candidate_manifest_sha256: sha("b") }, artifacts: [], corrupt: (payload) => { payload.confirmation_evidence = {}; } },
-    { type: "release-created", role: "pm-agent", payload: { release_id: "REL-core-v1", release_path: "releases/REL-core-v1", manifest_sha256: sha("c"), candidate_id: "CAND-core-r1", candidate_manifest_sha256: sha("b"), change_id: null }, artifacts: [artifact("releases/REL-core-v1/MANIFEST.json", sha("c"))], pathField: "release_path", corrupt: (payload) => { payload.change_id = 7; } },
+    { type: "release-created", role: "pm-agent", payload: { release_id: "REL-core-001", release_path: "releases/REL-core-001", manifest_sha256: sha("c"), candidate_id: "CAND-core-r1", candidate_manifest_sha256: sha("b"), review_id: "REV-core-01", review_report_sha256: sha("e"), change_id: null }, artifacts: [artifact("releases/REL-core-001/MANIFEST.json", sha("c"))], pathField: "release_path", corrupt: (payload) => { payload.change_id = 7; } },
     { type: "send-recorded", role: "authorized-sender", payload: { send_status: "sent-confirmed", channel: "manual", recipient: "Dev", external_reference: "message-1", send_evidence: "已发送" }, artifacts: [], corrupt: (payload) => { payload.recipient = 1; } },
     { type: "receipt-recorded", role: "external-recipient", payload: { receipt_status: "acknowledged", recipient: "Dev", external_reference: "reply-1", receipt_evidence: "已收到" }, artifacts: [], corrupt: (payload) => { payload.receipt_status = "done"; } },
-    { type: "change-started", role: "product-owner", payload: { change_id: "CHG-core-001", change_path: "changes/CHG-core-001.md", approval_evidence: "批准变更", release_id: "REL-core-v1", release_manifest_sha256: sha("c") }, artifacts: [artifact("changes/CHG-core-001.md")], pathField: "change_path", corrupt: (payload) => { payload.approval_evidence = 1; } },
+    { type: "change-started", role: "product-owner", payload: { change_id: "CHG-core-001", change_path: "changes/CHG-core-001.md", approval_evidence: "批准变更", release_id: "REL-core-001", release_manifest_sha256: sha("c") }, artifacts: [artifact("changes/CHG-core-001.md")], pathField: "change_path", corrupt: (payload) => { payload.approval_evidence = 1; } },
   ];
   const rawEvent = ({ type, role, payload, artifacts }) => ({
-    schema_version: 2,
-    runtime_version: "2.0.0",
+    schema_version: 3,
+    runtime_version: "3.0.0",
     delivery_id: "DEL-payload",
     revision: 1,
     event_id: "EVT-000001",
@@ -203,27 +183,6 @@ test("renderer is deterministic and exposes one next action", () => {
   assert.equal(renderStartHere(state), renderStartHere(structuredClone(state)));
   assert.equal((renderStartHere(state).match(/唯一下一步/g) ?? []).length, 1);
   assert.equal(stableJson({ b: 2, a: 1 }), '{"a":1,"b":2}');
-});
-
-test("V1 parser preserves prose only as untrusted evidence and always maps safe imports to Definition", async () => {
-  const valid = parseV1StartHere(await readFile(path.join(root, "fixtures", "v1", "valid-experience.md"), "utf8"));
-  assert.equal(valid.can_apply, true);
-  assert.equal(valid.mapped_phase, "definition");
-  assert.equal(valid.definition_approval_classification, "not-evaluated");
-  assert.match(valid.explicit_evidence.definition_approval, /批准当前产品定义/);
-  const invalid = parseV1StartHere(await readFile(path.join(root, "fixtures", "v1", "contradictory-complete.md"), "utf8"));
-  assert.equal(invalid.can_apply, false);
-  assert.ok(invalid.contradictions.length >= 3);
-  for (const evidence of ["批准当前定义", "未同意", "not confirmed", "approval denied", "已查看", "anything at all"]) {
-    const source = (await readFile(path.join(root, "fixtures", "v1", "valid-experience.md"), "utf8")).replace("批准当前产品定义", evidence);
-    const report = parseV1StartHere(source);
-    assert.equal(report.can_apply, true, evidence);
-    assert.equal(report.mapped_phase, "definition", evidence);
-    assert.equal(report.definition_approval_classification, "not-evaluated", evidence);
-  }
-  const unsupportedPhase = parseV1StartHere((await readFile(path.join(root, "fixtures", "v1", "valid-experience.md"), "utf8")).replace("Phase：`experience`", "Phase：`change`"));
-  assert.equal(unsupportedPhase.can_apply, false);
-  assert.match(unsupportedPhase.contradictions.join("\n"), /cannot be mapped safely/);
 });
 
 test("all honest Review identity modes have explicit evidence contracts", () => {

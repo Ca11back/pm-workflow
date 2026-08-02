@@ -66,6 +66,8 @@ function withJourneyEvidence(text) {
     "- Journey closure read-back：JNY-001 已从既有入口核对到当前结果。",
     "- Dangling affordances：none；本测试没有新增可见入口。",
     "- Re-entry / retrieval coverage：PAGE-01 通过既有入口覆盖。",
+    "- Design gap sweep：已核对全部批准 Journey，未发现跨合同缺口。",
+    "- Unresolved design gaps：none",
     "",
   ].join("\n");
 }
@@ -79,6 +81,8 @@ function withDefinitionExperience(text) {
     "- Required behavior coverage：delivery.md#RULE-001",
     "- Required roles / pages / states：用户查看当前状态；无新增可见状态。",
     "- Required journey closure：用户通过既有入口再次查看当前状态。",
+    "- Prototype readiness walkthrough：已按入口、状态、恢复和再次进入走查首版闭环。",
+    "- Unresolved prototype blockers：none",
     "",
   ].join("\n");
 }
@@ -198,6 +202,8 @@ test("approval gates reject unresolved Definition coverage and incomplete journe
     "- Required behavior coverage：delivery.md#RULE-001",
     "- Required roles / pages / states：用户查看异步结果的正常和失败状态。",
     "- Required journey closure：用户可从既有结果入口再次查看当前状态；不规定固定页面名称。",
+    "- Prototype readiness walkthrough：已检查入口、异步结果、失败恢复和再次进入。",
+    "- Unresolved prototype blockers：none",
     "",
   ].join("\n"));
   assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
@@ -335,25 +341,35 @@ async function throughCandidate(t, { findings = [] } = {}) {
   return root;
 }
 
-async function throughComplete(t) {
+async function throughLocalRelease(t) {
   const root = await throughCandidate(t);
   assert.equal(cli(["confirm-handoff", "--root", root, "--expect-revision", "6", "--evidence", "确认交付给开发", "--actor-role", "product-owner"]).status, 0);
-  assert.equal(cli(["create-release", "--root", root, "--expect-revision", "7", "--release-id", "REL-integration-v1"]).status, 0);
+  assert.equal(cli(["create-release", "--root", root, "--expect-revision", "7", "--release-id", "REL-integration-001"]).status, 0);
+  return root;
+}
+
+async function throughDistributed(t) {
+  const root = await throughLocalRelease(t);
   assert.equal(cli(["record-send", "--root", root, "--expect-revision", "8", "--send-status", "sent-confirmed", "--channel", "manual", "--recipient", "开发负责人", "--external-ref", "message-001", "--evidence", "已确认发送"]).status, 0);
   assert.equal(cli(["record-receipt", "--root", root, "--expect-revision", "9", "--receipt-status", "acknowledged", "--recipient", "开发负责人", "--external-ref", "reply-001", "--evidence", "开发负责人确认收到", "--actor-role", "external-recipient"]).status, 0);
   return root;
 }
 
-test("complete legal lifecycle separates Candidate, Review, Release, send, and receipt", async (t) => {
+test("local Release completes Delivery while optional send and receipt remain separate audit", async (t) => {
   const root = await throughCandidate(t);
   assert.equal(cli(["confirm-handoff", "--root", root, "--expect-revision", "6", "--evidence", "确认交付给开发", "--actor-role", "product-owner", "--actor-label", "负责人"]).status, 0);
-  const prepared = cli(["create-release", "--root", root, "--expect-revision", "7", "--release-id", "REL-integration-v1"]);
-  assert.equal(prepared.status, 0, JSON.stringify(prepared));
-  assert.equal(prepared.output.state.sending.status, "prepared");
-  assert.notEqual(prepared.output.state.candidate.candidate_id, prepared.output.state.release.release_id);
-  assert.equal(cli(["create-release", "--root", root, "--expect-revision", "8", "--release-id", "REL-integration-v1"]).status, 3);
+  const released = cli(["create-release", "--root", root, "--expect-revision", "7", "--release-id", "REL-integration-001"]);
+  assert.equal(released.status, 0, JSON.stringify(released));
+  assert.equal(released.output.state.phase, "complete");
+  assert.equal(released.output.state.status, "complete");
+  assert.equal(released.output.state.next_skill, "none");
+  assert.equal(released.output.state.sending.status, "prepared");
+  assert.notEqual(released.output.state.candidate.candidate_id, released.output.state.release.release_id);
+  assert.equal(cli(["create-release", "--root", root, "--expect-revision", "8", "--release-id", "REL-integration-001"]).status, 3);
   const attempted = cli(["record-send", "--root", root, "--expect-revision", "8", "--send-status", "attempted", "--channel", "manual", "--recipient", "开发负责人", "--external-ref", "mail-attempt-001", "--evidence", "首次发送结果不确定"]);
   assert.equal(attempted.status, 0);
+  assert.equal(attempted.output.state.phase, "complete");
+  assert.equal(attempted.output.state.next_skill, "none");
   const sent = cli(["record-send", "--root", root, "--expect-revision", "9", "--send-status", "sent-confirmed", "--channel", "manual", "--recipient", "开发负责人", "--external-ref", "mail-message-002", "--evidence", "授权人员确认已发送"]);
   assert.equal(sent.status, 0);
   assert.equal(cli(["record-receipt", "--root", root, "--expect-revision", "10", "--receipt-status", "acknowledged", "--recipient", "开发负责人", "--external-ref", "reply-message-003", "--evidence", "PM Agent 自称已收到", "--actor-role", "pm-agent"]).status, 2);
@@ -368,9 +384,15 @@ test("complete legal lifecycle separates Candidate, Review, Release, send, and r
   assert.equal(accepted.output.state.receipt.status, "accepted");
   assert.equal(cli(["record-receipt", "--root", root, "--expect-revision", "12", "--receipt-status", "rejected", "--recipient", "开发负责人", "--external-ref", "ticket-result-005", "--evidence", "试图覆盖终态", "--actor-role", "external-recipient"]).status, 2);
   assert.equal(cli(["validate", "--root", root]).status, 0);
-  const releaseManifest = JSON.parse(await readFile(path.join(root, "releases", "REL-integration-v1", "MANIFEST.json"), "utf8"));
+  const releaseRoot = path.join(root, "releases", "REL-integration-001");
+  const releaseManifest = JSON.parse(await readFile(path.join(releaseRoot, "MANIFEST.json"), "utf8"));
   assert.equal(releaseManifest.kind, "release");
+  assert.equal(releaseManifest.release_format, "developer-handoff");
   assert.equal(releaseManifest.source.candidate_id, "CAND-integration-r1");
+  assert.equal(releaseManifest.source.review_id, "REV-integration-01");
+  assert.ok(releaseManifest.files.some((record) => record.path === "DEVELOPER-HANDOFF.md"));
+  assert.ok(releaseManifest.files.some((record) => record.path === "review/REV-integration-01.md"));
+  assert.match(await readFile(path.join(releaseRoot, "DEVELOPER-HANDOFF.md"), "utf8"), /Local delivery: complete/);
 });
 
 test("stale revision, illegal transition, path traversal, and lock fail without event writes", async (t) => {
@@ -426,6 +448,35 @@ test("pre-freeze validates only explicit Candidate fields and rejects invalid re
   assert.equal(valid.status, 0, JSON.stringify(valid));
 });
 
+test("Definition evidence locators must be explicitly approval-bound before Candidate freeze", async (t) => {
+  const prepare = async (prefix, bindEvidence) => {
+    const root = await newRoot(t, prefix);
+    assert.equal(cli(["init", "--root", root, "--delivery-id", `DEL-${prefix}`, "--title", "Evidence binding", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+    await seedDraft(root);
+    await mkdir(path.join(root, "draft", "evidence"), { recursive: true });
+    await writeFile(path.join(root, "draft", "evidence", "claim.md"), "# Claim\n\nSanitized supporting fact.\n");
+    await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery\n\n- RULE-001: 用户可以查看当前状态。\n- Confirmed source: `evidence/claim.md#claim`\n"));
+    const definitionArgs = ["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md"];
+    if (bindEvidence) definitionArgs.push("--artifact", "draft/evidence/claim.md");
+    definitionArgs.push("--evidence", "批准", "--actor-role", "product-owner");
+    assert.equal(cli(definitionArgs).status, 0);
+    assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
+    assert.equal(cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
+    return root;
+  };
+
+  const unboundRoot = await prepare("evidence-unbound", false);
+  const rejected = cli(["freeze-candidate", "--root", unboundRoot, "--expect-revision", "4", "--candidate-id", "CAND-evidence-unbound-r1"]);
+  assert.equal(rejected.status, 2, JSON.stringify(rejected));
+  assert.equal(rejected.output.error.code, "candidate-reference");
+
+  const boundRoot = await prepare("evidence-bound", true);
+  const frozen = cli(["freeze-candidate", "--root", boundRoot, "--expect-revision", "4", "--candidate-id", "CAND-evidence-bound-r1"]);
+  assert.equal(frozen.status, 0, JSON.stringify(frozen));
+  const manifest = JSON.parse(await readFile(path.join(boundRoot, "candidates", "CAND-evidence-bound-r1", "MANIFEST.json"), "utf8"));
+  assert.ok(manifest.files.some((record) => record.path === "evidence/claim.md"));
+});
+
 test("Delivery root symlinks are rejected without initializing their targets", async (t) => {
   const parent = await newRoot(t, "root-symlink-");
   const target = path.join(parent, "real-delivery");
@@ -452,7 +503,7 @@ test("projection deletion/rebuild is deterministic", async (t) => {
   assert.equal(await readFile(path.join(root, "START-HERE.md"), "utf8"), expectedStart);
 });
 
-test("generated projection symlinks fail before transitions or migration persist state", async (t) => {
+test("generated projection symlinks fail before transitions persist state", async (t) => {
   const external = await newRoot(t, "projection-external-");
   const externalState = path.join(external, "outside-state.json");
   await writeFile(externalState, "outside remains unchanged\n");
@@ -470,15 +521,6 @@ test("generated projection symlinks fail before transitions or migration persist
   assert.equal(await readFile(externalState, "utf8"), "outside remains unchanged\n");
   assert.equal(await readdir(root).then((entries) => entries.includes("workflow.lock")), false);
 
-  const migrationRoot = await newRoot(t, "projection-migration-");
-  await cp(path.join(candidateRoot, "tests", "fixtures", "v1", "valid-experience.md"), path.join(migrationRoot, "START-HERE.md"));
-  await symlink(externalState, path.join(migrationRoot, "workflow-state.json"), "file");
-  const migrationResult = cli(["migrate-v1", "--root", migrationRoot, "--apply", "--expect-revision", "0"]);
-  assert.equal(migrationResult.status, 5, JSON.stringify(migrationResult));
-  assert.equal(migrationResult.output.error.code, "path-symlink");
-  assert.equal(await readdir(migrationRoot).then((entries) => entries.includes("events")), false);
-  assert.equal(await readdir(migrationRoot).then((entries) => entries.includes("source")), false);
-  assert.equal(await readFile(externalState, "utf8"), "outside remains unchanged\n");
 });
 
 test("Candidate mutation invalidates Review and reconcile refuses semantic repair", async (t) => {
@@ -495,8 +537,8 @@ test("Release and Review report drift block downstream transitions", async (t) =
   assert.equal(cli(["confirm-handoff", "--root", root, "--expect-revision", "6", "--evidence", "确认交付", "--actor-role", "product-owner"]).status, 5);
   await writeFile(path.join(root, "reviews", "review-01.md"), "# Review\n\n\n");
   assert.equal(cli(["confirm-handoff", "--root", root, "--expect-revision", "6", "--evidence", "确认交付", "--actor-role", "product-owner"]).status, 0);
-  assert.equal(cli(["create-release", "--root", root, "--expect-revision", "7", "--release-id", "REL-drift-v1"]).status, 0);
-  await writeFile(path.join(root, "releases", "REL-drift-v1", "delivery.md"), "release tamper\n");
+  assert.equal(cli(["create-release", "--root", root, "--expect-revision", "7", "--release-id", "REL-drift-001"]).status, 0);
+  await writeFile(path.join(root, "releases", "REL-drift-001", "delivery.md"), "release tamper\n");
   assert.equal(cli(["record-send", "--root", root, "--expect-revision", "8", "--send-status", "sent-confirmed", "--channel", "manual", "--recipient", "开发", "--external-ref", "mail-1", "--evidence", "确认发送"]).status, 5);
 });
 
@@ -570,20 +612,10 @@ test("stored replay rejects event actor, artifact, path, and nested-report relat
     await writeFile(reviewPath, originalReview);
   }
 
-  const migrationRoot = await newRoot(t, "stored-migration-");
-  await cp(path.join(candidateRoot, "tests", "fixtures", "v1", "valid-experience.md"), path.join(migrationRoot, "START-HERE.md"));
-  assert.equal(cli(["migrate-v1", "--root", migrationRoot, "--apply", "--expect-revision", "0"]).status, 0);
-  const migrationEventPath = path.join(migrationRoot, "events", "000001-v1-imported.json");
-  const migrationEvent = JSON.parse(await readFile(migrationEventPath, "utf8"));
-  delete migrationEvent.payload.migration_report.observed.receipt_status;
-  await writeFile(migrationEventPath, `${JSON.stringify(migrationEvent, null, 2)}\n`);
-  const replayed = cli(["status", "--root", migrationRoot]);
-  assert.equal(replayed.status, 5);
-  assert.equal(replayed.output.error.code, "stored-event-invalid");
 });
 
 test("stored replay applies stateful receipt bindings with integrity-class failure", async (t) => {
-  const root = await throughComplete(t);
+  const root = await throughDistributed(t);
   const receiptPath = path.join(root, "events", "000010-receipt-recorded.json");
   const receipt = JSON.parse(await readFile(receiptPath, "utf8"));
   receipt.payload.recipient = "另一位收件人";
@@ -652,7 +684,7 @@ test("Owner risk acceptance is distinct from correction and can satisfy Handoff"
   assert.equal(cli(["confirm-handoff", "--root", root, "--expect-revision", "7", "--evidence", "知悉风险并确认交付", "--actor-role", "product-owner"]).status, 0);
 });
 
-test("secret scan and prompt-injection evidence do not bypass Candidate rules", async (t) => {
+test("Candidate copies only approval-bound files and excludes unrelated, exploratory, and failed Draft material", async (t) => {
   const root = await newRoot(t);
   cli(["init", "--root", root, "--delivery-id", "DEL-security", "--title", "Security", "--owner", "Owner", "--expect-revision", "0"]);
   await seedDraft(root);
@@ -662,54 +694,20 @@ test("secret scan and prompt-injection evidence do not bypass Candidate rules", 
   cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
   const fakeSecret = `sk-${"A".repeat(24)}`;
   await writeFile(path.join(root, "draft", "accidental-secret.txt"), fakeSecret);
-  assert.equal(cli(["freeze-candidate", "--root", root, "--expect-revision", "4"]).status, 2);
-  await unlink(path.join(root, "draft", "accidental-secret.txt"));
+  await mkdir(path.join(root, "draft", "exploration"), { recursive: true });
+  await writeFile(path.join(root, "draft", "exploration", "discovery.pen"), "provisional\n");
+  await writeFile(path.join(root, "draft", "experience", "failed-preview.png"), "failed\n");
   await writeFile(path.join(root, "draft", "bad:name.md"), "not portable to Windows\n");
-  assert.equal(cli(["freeze-candidate", "--root", root, "--expect-revision", "4"]).status, 2);
-  await unlink(path.join(root, "draft", "bad:name.md"));
-  if (process.platform === "linux") {
-    await writeFile(path.join(root, "draft", "Case.md"), "one\n");
-    await writeFile(path.join(root, "draft", "case.md"), "two\n");
-    const caseCollision = cli(["freeze-candidate", "--root", root, "--expect-revision", "4"]);
-    assert.equal(caseCollision.status, 2);
-    assert.equal(caseCollision.output.error.code, "non-portable-path");
-    await unlink(path.join(root, "draft", "Case.md"));
-    await unlink(path.join(root, "draft", "case.md"));
-  }
-  assert.equal(cli(["freeze-candidate", "--root", root, "--expect-revision", "4"]).status, 0);
-});
-
-test("V1 arbitrary approval prose remains evidence-only until a new explicit V2 approval", async (t) => {
-  const fixture = await readFile(path.join(candidateRoot, "tests", "fixtures", "v1", "valid-experience.md"), "utf8");
-  const variants = ["批准当前产品定义", "未同意", "未确认", "not confirmed", "not accepted", "approval denied", "已查看"];
-  let firstRoot;
-  for (const [index, evidence] of variants.entries()) {
-    const root = await newRoot(t, `v1-evidence-${index}-`);
-    if (!firstRoot) firstRoot = root;
-    await writeFile(path.join(root, "START-HERE.md"), fixture.replace("批准当前产品定义", evidence));
-    const dry = cli(["migrate-v1", "--root", root, "--dry-run"]);
-    assert.equal(dry.status, 0, JSON.stringify(dry));
-    assert.equal(dry.output.report.mapped_phase, "definition", evidence);
-    assert.equal(dry.output.report.definition_approval_classification, "not-evaluated", evidence);
-    const applied = cli(["migrate-v1", "--root", root, "--apply", "--expect-revision", "0"]);
-    assert.equal(applied.status, 0, JSON.stringify(applied));
-    assert.equal(applied.output.state.phase, "definition", evidence);
-    assert.equal(applied.output.state.approvals.definition, null, evidence);
-    assert.match(await readFile(path.join(root, "source", "v1-START-HERE.md"), "utf8"), new RegExp(evidence.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  }
-  await seedDraft(firstRoot);
-  const approved = cli(["approve-definition", "--root", firstRoot, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "V2 中重新明确批准", "--actor-role", "product-owner"]);
-  assert.equal(approved.status, 0, JSON.stringify(approved));
-  assert.equal(approved.output.state.phase, "experience");
-  const invalidRoot = await newRoot(t, "v1-invalid-");
-  await cp(path.join(candidateRoot, "tests", "fixtures", "v1", "contradictory-complete.md"), path.join(invalidRoot, "START-HERE.md"));
-  assert.equal(cli(["migrate-v1", "--root", invalidRoot, "--dry-run"]).status, 2);
-  const unsupportedRoot = await newRoot(t, "v1-unsupported-phase-");
-  await writeFile(path.join(unsupportedRoot, "START-HERE.md"), fixture.replace("Phase：`experience`", "Phase：`change`"));
-  const unsupported = cli(["migrate-v1", "--root", unsupportedRoot, "--dry-run"]);
-  assert.equal(unsupported.status, 2);
-  assert.match(unsupported.output.error.details.contradictions.join("\n"), /cannot be mapped safely/);
-  assert.deepEqual((await readdir(unsupportedRoot)).sort(), ["START-HERE.md"]);
+  const frozen = cli(["freeze-candidate", "--root", root, "--expect-revision", "4", "--candidate-id", "CAND-security-r1"]);
+  assert.equal(frozen.status, 0, JSON.stringify(frozen));
+  const manifest = JSON.parse(await readFile(path.join(root, "candidates", "CAND-security-r1", "MANIFEST.json"), "utf8"));
+  assert.equal(manifest.selection.mode, "approval-bound");
+  assert.deepEqual(manifest.files.map((record) => record.path), [
+    "delivery.md",
+    "experience/brief.md",
+    "experience/evidence.md",
+    "experience/manifest.md",
+  ]);
 });
 
 test("render and reconcile lock before replay and reconcile rejects stale revisions", async (t) => {
@@ -771,21 +769,9 @@ test("every effectful command family rejects a controlled-directory symlink befo
   }
 });
 
-test("V1 migration rejects a symlinked source directory before preserving any file", async (t) => {
-  const root = await newRoot(t, "migration-symlink-");
-  await cp(path.join(candidateRoot, "tests", "fixtures", "v1", "valid-experience.md"), path.join(root, "START-HERE.md"));
-  await mkdir(path.join(root, "source-real"));
-  await symlink("source-real", path.join(root, "source"), "dir");
-  const result = cli(["migrate-v1", "--root", root, "--apply", "--expect-revision", "0"]);
-  assert.equal(result.status, 5, JSON.stringify(result));
-  assert.equal(result.output.error.code, "controlled-directory");
-  assert.deepEqual(await readdir(path.join(root, "source-real")), []);
-  assert.equal(await readdir(root).then((entries) => entries.includes("events")), false);
-});
-
-test("CHG starts from acknowledged, accepted, and rejected receipts with a fresh delivery-evidence round", async (t) => {
+test("CHG archives optional acknowledged, accepted, and rejected receipt audit", async (t) => {
   for (const terminal of ["acknowledged", "accepted", "rejected"]) {
-    const root = await throughComplete(t);
+    const root = await throughDistributed(t);
     let revision = 10;
     if (terminal !== "acknowledged") {
       const terminalResult = cli(["record-receipt", "--root", root, "--expect-revision", "10", "--receipt-status", terminal, "--recipient", "开发负责人", "--external-ref", `terminal-${terminal}`, "--evidence", `外部结论 ${terminal}`, "--actor-role", "external-recipient"]);
@@ -803,8 +789,43 @@ test("CHG starts from acknowledged, accepted, and rejected receipts with a fresh
   }
 });
 
+test("CHG can start directly from a completed local Release without send or receipt", async (t) => {
+  const root = await throughLocalRelease(t);
+  await writeFile(path.join(root, "changes", "CHG-local-001.md"), "# Local change\n\nOwner requests an observable change.\n");
+  const started = cli([
+    "start-change", "--root", root, "--expect-revision", "8", "--change-id", "CHG-local-001",
+    "--proposal", "changes/CHG-local-001.md", "--evidence", "批准从本地交付包开始下一轮", "--actor-role", "product-owner",
+  ]);
+  assert.equal(started.status, 0, JSON.stringify(started));
+  assert.equal(started.output.state.phase, "definition");
+  assert.equal(started.output.state.next_skill, "pm-definition");
+  assert.equal(started.output.state.release_history[0].sending.status, "prepared");
+  assert.equal(started.output.state.release_history[0].receipt.status, "pending");
+});
+
+test("CHG can start from attempted or sent-confirmed distribution without receipt", async (t) => {
+  for (const sendStatus of ["attempted", "sent-confirmed"]) {
+    const root = await throughLocalRelease(t);
+    const sent = cli([
+      "record-send", "--root", root, "--expect-revision", "8", "--send-status", sendStatus,
+      "--channel", "manual", "--recipient", "开发负责人", "--external-ref", `send-${sendStatus}`,
+      "--evidence", `真实发送状态 ${sendStatus}`,
+    ]);
+    assert.equal(sent.status, 0, JSON.stringify(sent));
+    const changeId = `CHG-${sendStatus}`;
+    await writeFile(path.join(root, "changes", `${changeId}.md`), `# ${changeId}\n`);
+    const started = cli([
+      "start-change", "--root", root, "--expect-revision", "9", "--change-id", changeId,
+      "--proposal", `changes/${changeId}.md`, "--evidence", "批准下一轮", "--actor-role", "product-owner",
+    ]);
+    assert.equal(started.status, 0, JSON.stringify(started));
+    assert.equal(started.output.state.release_history[0].sending.status, sendStatus);
+    assert.equal(started.output.state.release_history[0].receipt.status, "pending");
+  }
+});
+
 test("approved CHG round archives the prior delivery evidence, resets receipt, and rejects historical identity reuse", async (t) => {
-  const root = await throughComplete(t);
+  const root = await throughDistributed(t);
   await writeFile(path.join(root, "changes", "CHG-integration-001.md"), "# Change 001\n\nOwner proposes an observable behavior change.\n");
   const started = cli(["start-change", "--root", root, "--expect-revision", "10", "--change-id", "CHG-integration-001", "--proposal", "changes/CHG-integration-001.md", "--evidence", "批准开启变更轮次", "--actor-role", "product-owner"]);
   assert.equal(started.status, 0, JSON.stringify(started));
@@ -813,10 +834,10 @@ test("approved CHG round archives the prior delivery evidence, resets receipt, a
   assert.equal(started.output.state.release, null);
   assert.equal(started.output.state.sending.status, "not-prepared");
   assert.equal(started.output.state.receipt.status, "pending");
-  assert.equal(started.output.state.release_history[0].release_id, "REL-integration-v1");
+  assert.equal(started.output.state.release_history[0].release_id, "REL-integration-001");
   assert.equal(started.output.state.release_history[0].receipt.status, "acknowledged");
   assert.equal(started.output.state.active_change.change_id, "CHG-integration-001");
-  await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery v2\n\n- RULE-001: 用户可以查看变更后的状态。\n"));
+  await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery revision 2\n\n- RULE-001: 用户可以查看变更后的状态。\n"));
   assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "11", "--artifact", "draft/delivery.md", "--evidence", "批准变更后的定义", "--actor-role", "product-owner"]).status, 0);
   assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "12", "--artifact", "draft/experience/brief.md", "--evidence", "批准变更 Brief", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
   assert.equal(cli(["approve-preview", "--root", root, "--expect-revision", "13", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准变更体验证据", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
@@ -826,12 +847,12 @@ test("approved CHG round archives the prior delivery evidence, resets receipt, a
   await writeFile(path.join(root, "reviews", "review-change.md"), "# Change Review\n");
   assert.equal(cli(["record-review", "--root", root, "--expect-revision", "15", "--review-id", "REV-integration-02", "--report", "reviews/review-change.md", "--review-mode", "self-check", "--outcome", "passed", "--source-session", "session-change", "--review-session", "session-change", "--source-model", "model-a", "--review-model", "model-a", "--actor-role", "reviewer"]).status, 0);
   assert.equal(cli(["confirm-handoff", "--root", root, "--expect-revision", "16", "--evidence", "确认交付变更版本", "--actor-role", "product-owner"]).status, 0);
-  const reusedReleaseCase = cli(["create-release", "--root", root, "--expect-revision", "17", "--release-id", "rel-INTEGRATION-V1"]);
+  const reusedReleaseCase = cli(["create-release", "--root", root, "--expect-revision", "17", "--release-id", "rel-INTEGRATION-001"]);
   assert.equal(reusedReleaseCase.status, 2);
   assert.equal(reusedReleaseCase.output.error.code, "identity-reuse");
-  assert.equal(cli(["create-release", "--root", root, "--expect-revision", "17", "--release-id", "REL-integration-v2"]).status, 0);
+  assert.equal(cli(["create-release", "--root", root, "--expect-revision", "17", "--release-id", "REL-integration-002"]).status, 0);
   assert.equal(cli(["status", "--root", root]).output.state.receipt.status, "pending");
-  const releaseManifest = JSON.parse(await readFile(path.join(root, "releases", "REL-integration-v2", "MANIFEST.json"), "utf8"));
+  const releaseManifest = JSON.parse(await readFile(path.join(root, "releases", "REL-integration-002", "MANIFEST.json"), "utf8"));
   assert.equal(releaseManifest.source.change_id, "CHG-integration-001");
   assert.equal(cli(["record-send", "--root", root, "--expect-revision", "18", "--send-status", "sent-confirmed", "--channel", "manual", "--recipient", "开发负责人", "--external-ref", "message-002", "--evidence", "变更版本已发送"]).status, 0);
   assert.equal(cli(["record-receipt", "--root", root, "--expect-revision", "19", "--receipt-status", "accepted", "--recipient", "开发负责人", "--external-ref", "reply-002", "--evidence", "变更版本已接受", "--actor-role", "external-recipient"]).status, 0);
@@ -846,18 +867,18 @@ test("approved CHG round archives the prior delivery evidence, resets receipt, a
   assert.equal(cli(["start-change", "--root", root, "--expect-revision", "20", "--change-id", "CHG-integration-002", "--proposal", "changes/CHG-integration-002.md", "--evidence", "批准第二个变更轮次", "--actor-role", "product-owner"]).status, 0);
   const status = cli(["status", "--root", root]);
   assert.equal(status.output.state.change_history[0].change_id, "CHG-integration-001");
-  assert.equal(status.output.state.release_history[0].release_id, "REL-integration-v1");
-  assert.equal(status.output.state.release_history[1].release_id, "REL-integration-v2");
+  assert.equal(status.output.state.release_history[0].release_id, "REL-integration-001");
+  assert.equal(status.output.state.release_history[1].release_id, "REL-integration-002");
   assert.equal(status.output.state.active_change.change_id, "CHG-integration-002");
 
   await writeFile(path.join(root, "candidates", "CAND-integration-r1", "delivery.md"), "historical candidate drift\n");
   await writeFile(path.join(root, "reviews", "review-01.md"), "historical review drift\n");
-  await writeFile(path.join(root, "releases", "REL-integration-v1", "delivery.md"), "historical release drift\n");
+  await writeFile(path.join(root, "releases", "REL-integration-001", "delivery.md"), "historical release drift\n");
   await writeFile(path.join(root, "changes", "CHG-integration-001.md"), "historical change drift\n");
   const historical = cli(["validate", "--root", root]);
   assert.equal(historical.status, 5);
   const scopes = JSON.stringify(historical.output.error.details.integrity);
-  for (const scope of ["candidate-history:CAND-integration-r1", "review-history:REV-integration-01", "release-history:REL-integration-v1", "change-history:CHG-integration-001"]) assert.match(scopes, new RegExp(scope));
+  for (const scope of ["candidate-history:CAND-integration-r1", "review-history:REV-integration-01", "release-history:REL-integration-001", "change-history:CHG-integration-001"]) assert.match(scopes, new RegExp(scope));
   const eventCount = (await readdir(path.join(root, "events"))).length;
   const blockedTransition = cli(["approve-definition", "--root", root, "--expect-revision", "21", "--artifact", "draft/delivery.md", "--evidence", "不能越过历史漂移", "--actor-role", "product-owner"]);
   assert.equal(blockedTransition.status, 5);
@@ -865,7 +886,7 @@ test("approved CHG round archives the prior delivery evidence, resets receipt, a
   assert.equal((await readdir(path.join(root, "events"))).length, eventCount);
 });
 
-test("init refuses a non-empty V1-style root", async (t) => {
+test("init refuses a non-empty unsupported-format root", async (t) => {
   const root = await newRoot(t, "non-empty-");
   await writeFile(path.join(root, "START-HERE.md"), "legacy\n");
   const result = cli(["init", "--root", root, "--delivery-id", "DEL-non-empty", "--title", "Legacy", "--owner", "Owner", "--expect-revision", "0"]);

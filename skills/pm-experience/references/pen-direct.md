@@ -1,12 +1,12 @@
 # Direct Pen interactive operation
 
-Use only for the `pen` route after Brief approval. Keep internal commands and IDs out of PM interaction unless needed for preview access or diagnostics. Run `pen version`, `pen status`, and `pen interactive --help` directly; support 0.3.1+ and use that live help rather than a runtime parser, copied tool map, or adapter.
+Use for either the formal `pen` route after Brief approval or one explicitly handed-off provisional exploration while Definition remains active. Keep internal commands and IDs out of PM interaction unless needed for preview access or diagnostics. Run `pen version`, `pen status`, and `pen interactive --help` directly; support 0.3.1+ and use that live help rather than a runtime parser, copied tool map, or adapter.
 
-Continue only when the live help exposes headless output, preview output, state/schema read, mutation, structural read-back, save, and exit. Resolve the explicit Delivery root, keep the `.pen` and PNG under real, non-symbolic-link directories inside `draft/experience/`, and choose distinct targets that do not exist. Never overwrite a prior attempt or approved artifact. Keep the approved Brief as the coverage plan; do not create normal manifest evidence before the launch reaches `ready`.
+Continue only when the live help exposes headless output, preview output, state/schema read, mutation, structural read-back, save, and exit. Resolve the explicit Delivery root and choose distinct targets that do not exist; reject symbolic links at the controlled input or output boundary. Formal targets stay inside `draft/experience/`; exploration targets stay inside `draft/exploration/` and never enter approval artifacts. Never overwrite a prior attempt or approved artifact. Keep the approved Brief as the formal coverage plan; exploration uses only its bounded provisional Decision/Rule set. Do not create normal manifest evidence before a formal launch reaches `ready`.
 
 ## Launch state machine
 
-Start one interactive process with the live-help equivalent of `pen interactive --out <new-output.pen> --enable-preview --preview-output <new-preview.png>`.
+Start one interactive process with the live-help equivalent of `pen interactive --out <new-output.pen> --enable-preview --preview-output <new-preview.png>`. For a correction, use the supported `--in <prior-input.pen>` form while keeping both output targets new; the prior file is read-only input.
 
 Before launch, identify how the current host resumes an interactive terminal. Observe the complete launch result: output, liveness or termination, and any resumable terminal/session/job handle or channel. If launch yields, persist that handle before the surrounding tool call ends and send every later input through the same channel. Output text is not a handle; never project a structured launch result down to stdout alone. If the host exposes no resumable interactive channel, stop before launch and report a host-capability blocker.
 
@@ -20,13 +20,13 @@ Empty output from a yield is pending, not failure. Until explicit termination, t
 
 ## Operate the ready session
 
-Only after `ready`, copy `experience-manifest.md` to `experience/manifest.md` and copy every approval-bound Coverage ID, Markdown locator, page/state, and relationship from the Brief. A separate mutation DSL file is not required.
+For the formal route, only after `ready`, copy `experience-manifest.md` to `experience/manifest.md` and copy every approval-bound Coverage ID, Markdown locator, page/state, and relationship from the Brief. A separate mutation DSL file is not required. In exploration mode, update only the provisional discovery note, never create a formal manifest, and return observations to Definition.
 
 In the same process:
 
 1. Read app state/schema and only relevant guidelines.
 2. Create the approved pages/states in reviewable batches; do not add decorative navigation or action affordances whose destinations are not covered.
-3. Read back content/bounds, Coverage IDs, Journey IDs, and every visible navigation/action/return target. Fix missing, clipped, overlapping, contradictory, unreachable, or dangling states before claiming coverage. Static/non-clickable fidelity removes click behavior, not the need to show every destination required to understand an approved journey.
+3. Read back content/bounds, Coverage IDs, Journey IDs, and every visible navigation/action/return target. Fix missing, clipped, overlapping, contradictory, unreachable, or dangling states before claiming coverage. On a non-visual gap, stop inventing the affected path but finish one read-only sweep of the other approved Journeys to consolidate independent gaps. Static/non-clickable fidelity removes click behavior, not the need to show every destination required to understand an approved journey.
 4. Generate the preview, save the `.pen`, verify both files, and exit cleanly.
 
 Remove or correct an accidental affordance when that stays inside the approved Brief. If closing the journey requires a new destination or product behavior absent from the Brief, stop before preview approval and follow the Skill's explicit pre-Candidate Draft-revision path; do not invent the missing scope in Pen or report the old coverage as complete.
