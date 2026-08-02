@@ -17,7 +17,6 @@ import {
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
-import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 export const RUNTIME_VERSION = "2.0.0";
@@ -114,7 +113,7 @@ const COMMAND_FLAGS = Object.freeze({
   validate: ["root", "json"],
   render: ["root", "expect-revision", "json"],
   reconcile: ["root", "check", "expect-revision", "json"],
-  doctor: ["root", "pen-help-file", "json"],
+  doctor: ["root", "json"],
   "migrate-v1": ["root", "dry-run", "apply", "expect-revision", "actor-role", "actor-label", "json"],
   "record-brainstorm-patch": [
     "root", "expect-revision", "patch", "base-revision", "decision-locator", "actor-role", "actor-label", "json",
@@ -434,11 +433,27 @@ function parseInteger(value, label) {
 }
 
 export function parseArgs(argv) {
-  const normalizedArgv = argv[0] === "--help" || argv[0] === "-h" ? ["help", ...argv.slice(1)] : argv;
+  const leadingHelpAlias = argv[0] === "--help" || argv[0] === "-h";
+  const normalizedArgv = leadingHelpAlias ? ["help", ...argv.slice(1)] : argv;
   const [commandRaw, ...rest] = normalizedArgv;
   const command = commandRaw ?? "help";
   const allowed = COMMAND_FLAGS[command];
   if (!allowed) fail(`未知命令：${command}`, { code: "unknown-command" });
+  const helpTokens = rest.filter((token) => token === "--help" || token === "-h");
+  if (helpTokens.length) {
+    if (helpTokens.length + Number(leadingHelpAlias) > 1) fail("--help/-h 不能重复。");
+    const jsonCount = rest.filter((token) => token === "--json").length;
+    if (jsonCount > 1) fail("--json 不能重复。");
+    const unexpected = rest.filter((token) => !["--help", "-h", "--json"].includes(token));
+    if (unexpected.length) fail(`${command} help 只接受 --json，不能与执行参数同时使用。`);
+    return {
+      command: "help",
+      options: {
+        ...(command === "help" ? {} : { targetCommand: command }),
+        ...(jsonCount ? { json: true } : {}),
+      },
+    };
+  }
   const options = {};
   for (let index = 0; index < rest.length; index += 1) {
     const token = rest[index];
@@ -637,7 +652,7 @@ export function reduceEvent(previousState, event) {
       state.status = "blocked";
       state.blocker = event.payload.experience_route === "pen" ? "等待 Pen 保存、回读、导出并展示预览" : "等待负责人确认当前 Experience 证据";
       state.next_skill = "pm-experience";
-      state.next_action = event.payload.experience_route === "pen" ? "按已探测 Pen contract 完成最小原型并展示预览" : "展示路线证据并取得明确确认";
+      state.next_action = event.payload.experience_route === "pen" ? "按本机实时 Pen interactive 帮助完成最小原型并展示预览" : "展示路线证据并取得明确确认";
       break;
     }
     case "preview-approved": {
@@ -1706,63 +1721,20 @@ export function validateReviewIdentity(options, mode) {
   return { sourceSession, reviewSession, sourceModel, reviewModel };
 }
 
-function helpObject() {
-  return {
+function helpObject(targetCommand = undefined) {
+  const common = {
     runtime_version: RUNTIME_VERSION,
     schema_version: SCHEMA_VERSION,
     minimum_node_major: MINIMUM_NODE_MAJOR,
-    commands: Object.keys(COMMAND_FLAGS),
     exit_codes: EXIT,
   };
-}
-
-export function parsePenHelp(helpText) {
-  const normalized = helpText.replaceAll("\r\n", "\n").replace(/[ \t]+$/gm, "").trim();
-  const tools = [...normalized.matchAll(/^#\s+([a-z][a-z0-9_]*)\s*\(/gm)].map((match) => match[1]).sort();
-  const hasSave = /(?:^|\n)\s*save\(\)|\bsave (?:the )?(?:document|work)|\bpersist\b/i.test(normalized);
-  const currentRequired = ["batch_design", "batch_get", "export_nodes", "get_editor_state", "get_screenshot", "snapshot_layout"];
-  const current = currentRequired.every((tool) => tools.includes(tool)) && hasSave;
-  const newerRead = tools.includes("get_app_state");
-  const newerMutate = tools.includes("execute");
-  const newerSave = hasSave || tools.some((tool) => /save|persist/.test(tool));
-  const newerScreenshot = tools.some((tool) => /screenshot|preview/.test(tool));
-  const newerExport = tools.some((tool) => /export/.test(tool));
-  let contract = "unsupported";
-  let supported = false;
-  let missing = [];
-  if (current) {
-    contract = "pen-interactive-0.3-current";
-    supported = true;
-  } else if (newerRead && newerMutate && newerSave && newerScreenshot && newerExport) {
-    contract = "pen-interactive-web-new";
-    supported = true;
-  } else {
-    missing = currentRequired.filter((tool) => !tools.includes(tool));
-    if (!hasSave) missing.push("save");
-  }
+  if (!targetCommand) return { ...common, commands: Object.keys(COMMAND_FLAGS) };
   return {
-    supported,
-    contract,
-    fingerprint_sha256: sha256Bytes(normalized),
-    tools,
-    missing,
-    requires_live_state_read_before_mutation: true,
-    records_help_only: true,
+    ...common,
+    target_command: targetCommand,
+    usage: `pm-workflow ${targetCommand} [options]`,
+    options: [...COMMAND_FLAGS[targetCommand].map((flag) => `--${flag}`), "--help", "-h"],
   };
-}
-
-function runPenHelp(options) {
-  if (options["pen-help-file"]) {
-    return readFile(path.resolve(options["pen-help-file"]), "utf8").then((text) => ({ text, source: "fixture" }));
-  }
-  const result = spawnSync("pen", ["interactive", "--help"], { encoding: "utf8", timeout: 15_000, env: process.env });
-  if (result.error?.code === "ENOENT") fail("未找到 pen 可执行文件。", { exitCode: EXIT.UNAVAILABLE, code: "pen-unavailable" });
-  if (result.error) fail(`Pen capability probe 失败：${result.error.message}`, { exitCode: EXIT.UNAVAILABLE, code: "pen-unavailable" });
-  if (result.signal) fail(`Pen capability probe 被信号 ${result.signal} 终止。`, { exitCode: EXIT.UNAVAILABLE, code: "pen-unavailable" });
-  if (result.status !== 0) fail(`Pen capability probe 退出码为 ${result.status}。`, { exitCode: EXIT.UNAVAILABLE, code: "pen-unavailable" });
-  const text = `${result.stdout ?? ""}${result.stderr ?? ""}`;
-  if (!text.trim()) fail("Pen interactive help 没有输出。", { exitCode: EXIT.UNAVAILABLE, code: "pen-unavailable" });
-  return Promise.resolve({ text, source: "live-help" });
 }
 
 function extractV1Field(text, label) {
@@ -1891,15 +1863,12 @@ async function migrateV1Command(options) {
 }
 
 async function executeCommand(command, options) {
-  if (command === "help") return { ok: true, command: "help", ...helpObject() };
+  if (command === "help") return { ok: true, command: "help", ...helpObject(options.targetCommand) };
   if (command === "init") return initCommand(options);
   if (command === "migrate-v1") return migrateV1Command(options);
   if (command === "doctor") {
     const nodeMajor = Number(process.versions.node.split(".")[0]);
     if (nodeMajor < MINIMUM_NODE_MAJOR) fail(`Node ${MINIMUM_NODE_MAJOR}+ required; current ${process.versions.node}.`, { exitCode: EXIT.UNAVAILABLE, code: "node-version" });
-    const help = await runPenHelp(options);
-    const pen = parsePenHelp(help.text);
-    if (!pen.supported) fail("Pen interactive capability contract 未识别或不完整。", { exitCode: EXIT.UNAVAILABLE, code: "pen-contract", details: { source: help.source, ...pen } });
     let delivery = null;
     if (options.root) {
       const root = await rootRealPath(options.root);
@@ -1912,7 +1881,7 @@ async function executeCommand(command, options) {
         try { delivery.lock = JSON.parse(await readFile(lockPath, "utf8")); } catch { delivery.lock = { unreadable: true }; }
       }
     }
-    return { ok: true, command: "doctor", node: { version: process.versions.node, supported: true }, pen: { source: help.source, ...pen }, delivery };
+    return { ok: true, command: "doctor", node: { version: process.versions.node, supported: true }, delivery };
   }
   const rootOption = requireOption(options, "root");
   if (["status", "next", "validate"].includes(command)) {
@@ -2177,7 +2146,8 @@ async function executeCommand(command, options) {
 }
 
 function plainMessage(result) {
-  if (result.command === "doctor") return `阶段：环境诊断\n阻塞：none\n下一步：先执行一次非破坏性 Pen state read，再允许任何 mutation。`;
+  if (result.command === "doctor") return `阶段：环境诊断\n阻塞：none\n下一步：按当前生成状态继续。`;
+  if (result.command === "help" && result.target_command) return `PM Workflow Runtime ${RUNTIME_VERSION}\n用法：${result.usage}\n选项：${result.options.join(", ")}`;
   if (result.command === "help") return `PM Workflow Runtime ${RUNTIME_VERSION}\n命令：${result.commands.join(", ")}`;
   if (result.state) return `阶段：${result.state.phase}\n阻塞：${result.state.blocker}\n下一步：${result.state.next_action}`;
   if (result.report) return `阶段：V1 迁移检查\n阻塞：none\n下一步：${result.dry_run ? "审阅迁移报告后用 --apply 明确应用。" : "按生成状态继续。"}`;

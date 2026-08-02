@@ -12,10 +12,10 @@ import {
   makeEvent,
   normalizeRelative,
   parseArgs,
-  parsePenHelp,
   parseV1StartHere,
   reduceEvent,
   renderStartHere,
+  runCli,
   sha256Bytes,
   stableJson,
   validateReviewIdentity,
@@ -33,6 +33,31 @@ test("standard help aliases resolve without a fake command failure", () => {
   assert.deepEqual(parseArgs(["--help"]), { command: "help", options: {} });
   assert.deepEqual(parseArgs(["-h"]), { command: "help", options: {} });
   assert.deepEqual(parseArgs(["--help", "--json"]), { command: "help", options: { json: true } });
+  assert.throws(() => parseArgs(["--help", "--help", "--json"]), /不能重复/);
+  assert.throws(() => parseArgs(["-h", "--help", "--json"]), /不能重复/);
+});
+
+test("every valid subcommand supports isolated read-only help aliases", async () => {
+  assert.deepEqual(parseArgs(["init", "--help"]), { command: "help", options: { targetCommand: "init" } });
+  assert.deepEqual(parseArgs(["init", "-h"]), { command: "help", options: { targetCommand: "init" } });
+  assert.deepEqual(parseArgs(["status", "--help", "--json"]), { command: "help", options: { targetCommand: "status", json: true } });
+  assert.throws(() => parseArgs(["init", "--root", "delivery", "--help"]), /不能与执行参数同时使用/);
+
+  let stdout = "";
+  let stderr = "";
+  const exitCode = await runCli(["init", "--help", "--json"], {
+    stdout: { write: (value) => { stdout += value; } },
+    stderr: { write: (value) => { stderr += value; } },
+  });
+  assert.equal(exitCode, EXIT.OK);
+  assert.equal(stderr, "");
+  const result = JSON.parse(stdout);
+  assert.equal(result.command, "help");
+  assert.equal(result.target_command, "init");
+  assert.equal(result.usage, "pm-workflow init [options]");
+  assert.ok(result.options.includes("--root"));
+  assert.ok(result.options.includes("--help"));
+  assert.ok(result.options.includes("-h"));
 });
 
 test("path normalization rejects POSIX and Windows traversal", () => {
@@ -177,18 +202,6 @@ test("renderer is deterministic and exposes one next action", () => {
   assert.equal(renderStartHere(state), renderStartHere(structuredClone(state)));
   assert.equal((renderStartHere(state).match(/唯一下一步/g) ?? []).length, 1);
   assert.equal(stableJson({ b: 2, a: 1 }), '{"a":1,"b":2}');
-});
-
-test("Pen fixtures distinguish current, new, old/partial, and unknown contracts", async () => {
-  const fixture = async (name) => readFile(path.join(root, "fixtures", "pen", name), "utf8");
-  const current = parsePenHelp(await fixture("current-0.3-help.txt"));
-  assert.equal(current.supported, true);
-  assert.equal(current.contract, "pen-interactive-0.3-current");
-  const newer = parsePenHelp(await fixture("new-web-help.txt"));
-  assert.equal(newer.supported, true);
-  assert.equal(newer.contract, "pen-interactive-web-new");
-  assert.equal(parsePenHelp(await fixture("old-no-save-help.txt")).supported, false);
-  assert.equal(parsePenHelp(await fixture("unknown-help.txt")).supported, false);
 });
 
 test("V1 parser preserves prose only as untrusted evidence and always maps safe imports to Definition", async () => {

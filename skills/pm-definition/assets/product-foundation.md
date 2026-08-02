@@ -2,6 +2,14 @@
 
 > Bundle-relative path：`foundation.md`；Draft 与 Release 保持相同内部路径，only root `START-HERE.md` declares the current candidate/Release scope.
 
+## Definition working state
+
+- `known_required_open` / `blocking_current_slice`：{N} / {N}
+- `deferred` / `owner_confirmation`：{N} / {N}
+- `estimated_sequential_rounds`：{N or unknown}
+- `presentation_mode`：`unset | guided | small-batch | checklist`
+- `current_decision_node`：{bundle-relative path#DEC-* or none}
+
 ## Product boundary
 
 - Delivery：`DEL-{slug}`

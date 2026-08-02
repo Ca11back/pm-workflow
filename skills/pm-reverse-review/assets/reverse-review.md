@@ -8,10 +8,10 @@
 - Lifecycle / intended use：`candidate` / `implementation | engineering-review | prototype`
 - Reviewed scope / artifacts：{bundle-relative files/path#IDs and manifest entries}
 - Experience target / status / reason：`not-needed | existing-reference | pen` / `pending | completed | skipped-risk` / {plain-language reason, `owner-skipped`, or `tool-unavailable`}
-- Included Experience：{brief, `.pen` source, exact previews, visual role, sync/read-back, covered Markdown/Pen-node locators}
+- Included Experience：{brief, `.pen` source, exact previews, Agent/human visual-review evidence, visual role, structural read-back, covered Markdown/Pen-node locators}
 - Experience adequacy：`pen-implementation-target | exact-existing-reference | explicit-skipped-risk | not-needed-non-visible | gap` / {user-visible-scope test and evidence}
 - Experience lifecycle authority：`experience/manifest.md` plus generated `START-HERE.md` / {route, status, source and preview agreement; Definition files are not mutable lifecycle snapshots}
-- Multi-state relationship check：{each approved Coverage ID and its relationship statement; agreement across Brief/worksheet/manifest; any contradiction with approved behavior}
+- Multi-state relationship check：{each approved Coverage ID and its relationship statement; agreement across Brief/Pen read-back/manifest; any contradiction with approved behavior}
 - Pen structure verification：`direct-read-only | isolated-copy | preview-and-recorded-read-back-only | not-applicable` / {evidence or explicit limitation}
 - Isolated-copy boundary / cleanup：`not-used | authorized-copy-cleaned | authorized-copy-retained` / {caller-authorized scope evidence and exact cleanup result}
 - Review mode / date：`self-check | isolated-same-model | independent-model | human` / {date}

@@ -69,11 +69,10 @@ test("pm-definition keeps approval-bound contracts free of mutable Experience sn
   }
 });
 
-test("pm-experience routes Pen through the one-session shell-free runner", async () => {
+test("pm-experience directs one live Pen process without a wrapper and handles non-visual Agents", async () => {
   const skill = await readFile(path.join(candidateRoot, "skills", "pm-experience", "SKILL.md"), "utf8");
   const reference = await readFile(path.join(candidateRoot, "skills", "pm-experience", "references", "pen-direct.md"), "utf8");
   const experienceBrief = await readFile(path.join(candidateRoot, "skills", "pm-experience", "assets", "experience-brief.md"), "utf8");
-  const designTemplate = await readFile(path.join(candidateRoot, "skills", "pm-experience", "assets", "pen-design-input.md"), "utf8");
   const experienceManifest = await readFile(path.join(candidateRoot, "skills", "pm-experience", "assets", "experience-manifest.md"), "utf8");
   const reviewTemplate = await readFile(path.join(candidateRoot, "skills", "pm-reverse-review", "assets", "reverse-review.md"), "utf8");
   const reviewMethod = await readFile(path.join(candidateRoot, "skills", "pm-reverse-review", "references", "review-method.md"), "utf8");
@@ -81,61 +80,69 @@ test("pm-experience routes Pen through the one-session shell-free runner", async
   const claimEvidence = await readFile(path.join(candidateRoot, "skills", "pm-definition", "assets", "claim-evidence.md"), "utf8");
   const definitionSkill = await readFile(path.join(candidateRoot, "skills", "pm-definition", "SKILL.md"), "utf8");
   const readme = await readFile(path.join(candidateRoot, "README.md"), "utf8");
-  const runner = await readFile(path.join(candidateRoot, "skills", "pm-experience", "scripts", "run-pen-session.mjs"), "utf8");
   for (const text of [skill, reference, readme]) {
-    assert.match(text, /one .*session|一个 interactive session/);
-    assert.match(text, /do not exist|must not exist|does not overwrite|no-overwrite|不.*覆盖|never overwrites|拒绝.*覆盖/);
-    assert.match(text, /symbolic link|符号链接/);
+    assert.match(text, /one .*interactive process|one-process|同一个 `pen interactive` 进程/);
+    assert.match(text, /do not exist|must not exist|never overwrite|不.*覆盖|不存在.*新目标/);
+    assert.match(text, /symbolic[- ]links?|symlinks|符号链接/);
+    assert.match(text, /live .*help|实时 help|live interactive help/);
   }
-  assert.match(skill, /Do not operate `pen interactive` manually/);
-  assert.match(reference, /`save\(\)` on its own line/);
-  assert.match(reference, /`exit\(\)` on its own line/);
-  assert.match(reference, /platform-unsupported/);
+  assert.match(skill, /Run the installed Pen CLI directly/);
+  assert.match(skill, /Do not invoke Pen Agent Mode/);
+  assert.match(reference, /do not[^\n]*add an adapter between the Agent and Pen/);
+  assert.match(reference, /A yielded or still-running process is not a failure/);
   const briefTemplateStep = skill.indexOf("[experience-brief.md](assets/experience-brief.md)");
   const manifestTemplateStep = skill.indexOf("[experience-manifest.md](assets/experience-manifest.md)");
   const briefApprovalStep = skill.indexOf("call `approve-brief`");
-  const designWorksheetStep = skill.indexOf("[pen-design-input.md](assets/pen-design-input.md)");
-  assert.ok(briefTemplateStep >= 0 && briefApprovalStep > briefTemplateStep && designWorksheetStep > briefApprovalStep && manifestTemplateStep > briefApprovalStep, "Brief approval must precede worksheet and manifest lifecycle evidence");
+  assert.ok(briefTemplateStep >= 0 && briefApprovalStep > briefTemplateStep && manifestTemplateStep > briefApprovalStep, "Brief approval must precede manifest lifecycle evidence");
   assert.match(skill, /Do not replace the Brief template with an ad hoc file/);
   assert.match(skill, /Do not bind `draft\/experience\/manifest\.md` here/);
   assert.match(skill, /After `approve-brief` succeeds, do not edit the approved Brief/);
-  assert.match(skill, /pen-design-input\.md/);
-  assert.match(skill, /exactly one coverage row for every approved Brief page\/state/);
-  assert.match(reference, /full `Insert`, `Update`, and `Delete` operation names/);
-  assert.match(reference, /display-name string parents are both allowed/);
+  assert.match(skill, /copy every approved Coverage ID and relationship statement unchanged/);
   assert.match(experienceBrief, /\| Coverage ID \| Markdown locator .*\| Runtime relationship \|/);
   assert.match(experienceBrief, /approval-bound Coverage IDs and relationship values must be copied unchanged/);
   assert.match(experienceBrief, /Keep approval words\/date `pending` while presenting this Brief/);
   assert.match(experienceBrief, /Never predict or fabricate the reply/);
   assert.match(experienceBrief, /After that event, do not edit this Brief/);
-  assert.match(designTemplate, /exactly one row for every page\/state named in the approved Brief/);
-  assert.match(designTemplate, /\| Coverage ID \| Brief page\/state \|/);
-  assert.match(designTemplate, /\| Runtime relationship \|/);
-  assert.match(designTemplate, /approved relationship statement/);
   assert.match(experienceManifest, /\| Coverage ID \| Markdown locator .*\| Runtime relationship \|/);
   assert.match(experienceManifest, /Candidate artifact.*`experience\/brief\.md`/);
   assert.match(experienceManifest, /Candidate artifact.*`experience\/manifest\.md`/);
   assert.match(experienceManifest, /only after `approve-brief` succeeds/);
   assert.match(experienceManifest, /first bound by `approve-preview`/);
-  assert.match(reference, /Do not edit that Brief after approval/);
+  assert.match(experienceManifest, /Agent visual capability \/ inspection/);
+  assert.match(experienceManifest, /Preview presentation to Owner/);
+  assert.match(experienceManifest, /Structural read-back is not visual inspection/);
+  assert.match(skill, /If the Agent cannot inspect images/);
+  assert.match(skill, /If neither the Agent nor the Owner can access the preview, keep Experience blocked/);
+  assert.match(reference, /do not edit it after approval/i);
   assert.match(reviewMethod, /Evidence-canvas layout is not runtime behavior authority/);
+  assert.match(reviewMethod, /structural evidence is not a visual substitute/);
   assert.match(reviewTemplate, /relationship statement/);
   assert.match(reviewProbes, /relationship statement/);
-  for (const text of [skill, reference, experienceBrief, designTemplate, experienceManifest, reviewTemplate, reviewMethod, reviewProbes, readme]) {
+  for (const text of [skill, reference, experienceBrief, experienceManifest, reviewTemplate, reviewMethod, reviewProbes, readme]) {
     assert.doesNotMatch(text, /mutually-exclusive with <Coverage ID>|coexists with <Coverage ID>|independent example/);
   }
   assert.match(definitionSkill, /\[claim-evidence\.md\]\(assets\/claim-evidence\.md\)/);
   assert.match(claimEvidence, /Candidate evidence.*`evidence\/\{slug\}\.md`/);
   assert.doesNotMatch(claimEvidence, /Candidate evidence.*`(?:draft|source)\//);
-  assert.match(designTemplate, /Insert\("Coverage:PAGE-01-NORMAL"/);
-  for (const text of [skill, reference, designTemplate, readme]) assert.doesNotMatch(text, /(?:^|[^A-Za-z])(?:I|U|D)\s*\(/m);
-  assert.match(runner, /spawn\(penCommand, args, \{ cwd, env, shell: false/);
-  assert.match(runner, /design-operation-shorthand/);
-  assert.match(runner, /await link\(pair\.source, pair\.target\)/);
-  assert.match(runner, /mkdtemp\(path\.join\(paths\.root, "draft\/experience\/pen-session-"\)\)/);
-  assert.doesNotMatch(runner, /unlink\(paths\.(?:outPath|previewPath)\)/);
-  assert.match(runner, /"interactive", "--out"/);
-  assert.match(runner, /"--enable-preview", "--preview-output"/);
+  assert.deepEqual((await readdir(path.join(candidateRoot, "skills", "pm-experience", "scripts"))).sort(), ["pm-workflow.mjs"]);
+  for (const text of [skill, reference, readme]) {
+    assert.doesNotMatch(text, /batch_design|get_editor_state|snapshot_layout/);
+    assert.doesNotMatch(text, /contract fingerprint|compatibility adapter|兼容层/);
+  }
+});
+
+test("017 interaction improvements remain integrated across the Skill handoffs", async () => {
+  for (const skillName of skillNames) {
+    const text = await readFile(path.join(candidateRoot, "skills", skillName, "SKILL.md"), "utf8");
+    assert.match(text, /hand off internally/i, skillName);
+  }
+  const delivery = await readFile(path.join(candidateRoot, "skills", "pm-delivery", "SKILL.md"), "utf8");
+  const definition = await readFile(path.join(candidateRoot, "skills", "pm-definition", "SKILL.md"), "utf8");
+  const intake = await readFile(path.join(candidateRoot, "skills", "pm-definition", "references", "intake-and-routing.md"), "utf8");
+  assert.match(delivery, /first concrete PM-facing business question/);
+  assert.match(definition, /Do not prescribe a mandatory sentence/);
+  assert.match(intake, /estimated_sequential_rounds/);
+  assert.match(intake, /answer in their own words/);
 });
 
 test("Skill docs have no unresolved cross-Skill placeholder or host/path overfit", async () => {

@@ -47,7 +47,7 @@ product-deliveries/DEL-example/
 | --- | --- |
 | `pm-delivery` | 初始化/恢复并精确路由。 |
 | `pm-definition` | 收敛 Draft 产品定义并取得独立的 Definition approval。 |
-| `pm-experience` | 批准 Brief，探测 Pen contract，保存/回读/导出，批准预览并冻结 Candidate。 |
+| `pm-experience` | 批准 Brief，由 Agent 直接操作 Pen interactive，完成结构/视觉审阅，批准预览并冻结 Candidate。 |
 | `pm-reverse-review` | 对一个 hash-bound Candidate 做只读 Review，并诚实记录 Review mode。 |
 | `pm-handoff` | 处置 Finding、取得 Handoff、准备 Release、记录发送和外部 receipt。 |
 | `pm-brainstorm` | 比较一个绑定 Draft revision 的产品 Decision。 |
@@ -62,7 +62,7 @@ product-deliveries/DEL-example/
 npx skills add <owner>/<repo> --skill '*'
 ```
 
-不要只安装 `pm-delivery`；它是薄路由。Node 20+ 是 runtime 最低版本，`doctor` 会明确验证。
+不要只安装 `pm-delivery`；它是薄路由。Node 20+ 是 runtime 最低版本，`doctor` 会明确验证 runtime 与可选 Delivery 边界。
 
 ## 关键证据语义
 
@@ -75,15 +75,11 @@ npx skills add <owner>/<repo> --skill '*'
 - V1 中任何自由文本 approval 都只作为未信任历史证据保存；migration 一律停在 Definition，必须重新记录明确的 V2 Owner approval 才能进入 Experience。
 - `start-change` 把上一轮 Release、sending 和 receipt 一并归档，当前轮重置为未准备/pending；新 Release 不继承旧回执。
 
-Pen 支持不靠版本号猜测。`doctor` 实际解析本机 `pen interactive --help` 并生成不含 token/account/session 的 contract fingerprint。未知 contract、缺少 state-read/mutate/save/screenshot/preview 能力时 fail closed。
+Pen 只支持本机 0.3.1 或更高版本的 direct interactive 路线。`pm-experience` 直接运行 `pen version`、`pen status` 与当前 `pen interactive --help`，再由当前 Agent 启动并持续操作同一个 `pen interactive` 进程；不使用 Pen Agent Mode、嵌套模型、MCP/plugin，也没有 Node runner、提示符解析或版本命令适配层。实时 help 是该次会话的操作说明，runtime 不解释 Pen 工具协议。
 
-通过 `pm-experience` 的 `scripts/run-pen-session.mjs` 执行新文档：Node 20+、零第三方依赖、`shell: false`、一个子进程和一个 interactive session。先用随 Skill 提供的 coverage worksheet 为已批准 Brief 的每个必需页面/状态建立一行，并复制 Brief 中由已批准行为得出的简短关系说明，再生成只含可见 `batch_design` 输入的设计文件。操作名必须使用 live-help-backed `Insert`、`Update`、`Delete` 全名，runner 会在 Pen 启动前拒绝未探测的缩写。Brief 批准不等于批准 raw DSL。runner 将 state read、唯一 mutation、整文档 layout、整文档 screenshot、独立 `save()`、整文档 read-back、独立 `exit()` 按物理行顺序写入同一进程，并严格核验 screenshot base64/PNG、`.pen` UTF-8/JSON、preview 和最终 hash。三个路径都必须在显式 Delivery 根的 `draft/experience/` 下，父目录预先创建，拒绝遍历、符号链接和覆盖现有目标；任何 Pen `Error`、非零退出、信号、超时或证据缺失都会立即停止，当前动作内不自动或手工重试。不要手工拆成多个 `pen interactive` session，也不要跨 session 复用 node ID。
+Brief 批准后，Agent 为 `.pen` 与 PNG 选择 `draft/experience/` 下不存在的新目标，先读取 state/schema 与相关 guidelines，再按批准的 Coverage ID 直接设计、结构回读、检查布局、保存并退出。Pen 的 exit code 不是唯一成功条件：初始提示、命令错误、read-back、保存结果和最终文件都必须实际确认。任何启动、认证、服务、交互、保存或预览失败都会停止当前动作，不自动重试、删除全局 socket、切换工具或声称完成。
 
-Pen 只写 `draft/experience/` 内 mode-700 高熵临时目录。runner 完整验证临时产物后，依次用文件系统 `link()` 将 `.pen` 和 PNG 发布到最终路径；hard link 原子拒绝已存在目标，runner 永不 unlink/rename final。第二个 link 失败时，第一份已验证 final 明确保留为 partial publish，错误 JSON 会给出 `published_paths`，不自动回滚。
-
-临时清理先一次性验证目录身份、精确两项文件名以及两个 regular/non-symlink 文件；任一异常都整目录保留，一项也不先删。该边界假设同一操作系统 UID 下无恶意并发者，不声称抵抗同 UID 对抗式换档；hard-link 提交本身仍是原子 no-overwrite。
-
-默认 runner 当前在 Windows 明确 fail closed：常见 `pen.cmd` shim 无法满足已验证的 shell-free 启动约束，因此不会暗中开启 shell 或虚称支持。
+PNG 预览必须在 preview approval 前交给产品负责人。能读取图像的 Agent 先做视觉检查再展示；不能读取图像的 Agent 必须明确披露限制，通过宿主附件/渲染或精确本地路径让产品负责人亲自审阅，并等待上下文明确的回复。结构回读不能冒充视觉检查；如果 Agent 与负责人都无法访问 PNG，Experience 保持阻塞。
 
 ## 安全边界
 

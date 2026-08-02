@@ -37,21 +37,22 @@ Apply proportionally to the selected Candidate and intended use. A probe determi
 ## Experience consistency
 
 - Does the current scope change any user-visible page, action, copy, visibility, state, feedback, or result, regardless of request size or layout?
-- If yes, is there a completed Pen `implementation-target`, an authoritative `existing-reference` exact for every required normal/material state, or explicit `skipped-risk` evidence naming Owner skip/tool unavailability and one concrete impact? For tool unavailability, does evidence include route discovery, capability check, a concrete direct-operation attempt, and the applicable retry result? If no, does `not-needed` state the reason?
+- If yes, is there a completed Pen `implementation-target`, an authoritative `existing-reference` exact for every required normal/material state, or explicit `skipped-risk` evidence naming Owner skip/tool unavailability and one concrete impact? For tool unavailability, does evidence include version/status/help discovery, the direct interactive attempt, exact non-secret failure, and the applicable no-retry or later-authorized result? If no, does `not-needed` state the reason?
 - Before the first Pen mutation, did `experience/brief.md` already exist with explicit, dated PM/Owner acceptance of the concrete scope/fidelity, rather than only generic permission to complete the workflow?
 - Is the artifact an `exploration` or `implementation-target`, never a parallel behavior authority?
 - Is any `exploration` artifact still `pending` in Definition and excluded from Candidate readiness?
 - Does each Pen node that expresses a permission, action, stage, exception, notification, or side effect map to a current bundle-relative Markdown `path#ID`?
-- Are `experience/brief.md`, `.pen` source, exact preview exports, node coverage, structural/visual checks, missing states, `tool-unavailable`, read-back failures, and `sync_status` visible?
+- Are `experience/brief.md`, `.pen` source, exact preview exports, node coverage, structural checks, Agent visual capability, human preview evidence when needed, missing states, `tool-unavailable`, read-back failures, and `sync_status` visible?
 - Are current Experience lifecycle facts read from `experience/manifest.md` and generated `START-HERE.md`, without requiring the earlier hash-bound Definition contract to duplicate mutable route/status/source/preview facts?
-- For every multi-state artifact, does the same approval-bound Coverage ID and relationship statement survive through Brief, coverage worksheet, node name, and manifest without conflicting with approved behavior?
+- For every multi-state artifact, does the same approval-bound Coverage ID and relationship statement survive through Brief, visible Pen node/read-back, and manifest without conflicting with approved behavior?
+- If the authoring or reviewing Agent could not inspect images, was that limitation disclosed and did the Owner actually receive and review the exact PNG before approval? Was structured read-back kept separate from visual evidence?
 - Was the authoritative `.pen` kept read-only during Review? Did every isolated copy/output stay inside the caller-authorized write scope and get cleaned only by its exact authorized location? If isolated inspection was unavailable, does the report disclose that structure was not independently verified?
 - Did an Experience change occur after the reviewed candidate? If Finding-driven, is current status `findings-open`; otherwise, with no pending Finding, is the old report historical and current status `not-run`?
 
 ## Status integrity
 
 - Is every Delivery entered through `START-HERE.md`, including compact work?
-- Did the Candidate gate pass only after manifest, included scope, Experience preview/read-back, PM preview, and unresolved feedback were complete? If the formal Pen artifact is absent under `skipped-risk`, is there an explicit dated PM/Owner choice to continue after seeing the limitation and impact?
+- Did the Candidate gate pass only after manifest, included scope, structural read-back, an accessible Experience preview, PM/Owner visual review, and unresolved feedback were complete? If the formal Pen artifact is absent under `skipped-risk`, is there an explicit dated PM/Owner choice to continue after seeing the limitation and impact?
 - Is `prototype/engineering-review` limited to Draft, and does every `released/superseded` snapshot use `implementation`?
 - Does the Review handoff check stay `missing` for non-passed status until the PM/Owner explicitly chooses a risk-bearing handoff, without changing open Finding dispositions?
 - Is `passed` free of open, awaiting-review, and accepted-risk Findings?

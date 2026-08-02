@@ -1,64 +1,52 @@
-# Pen interactive capability contract
+# Direct Pen interactive operation
 
-Use only for the `pen` Experience route after a hash-bound Brief approval. This is an internal Agent procedure; do not expose commands, file paths, node IDs, or setup details in ordinary PM interaction.
+Use only for the `pen` Experience route after a hash-bound Brief approval. This is an internal Agent procedure; keep commands, paths, node IDs, and setup details out of ordinary PM interaction unless they are needed to let the Owner access a preview or request diagnostics.
 
-## Discover, do not assume
+## Use the installed CLI as the contract
 
-Run the vendored runtime's `doctor --json`. It calls local `pen interactive --help`, normalizes and fingerprints help, and returns only non-secret capability metadata. It does not read tokens, account configuration, session files, or environment credentials.
+Run `pen version`, `pen status`, and `pen interactive --help` directly. Support Pen 0.3.1 or later only. The live interactive help is the operation reference for that session; do not ask the PM runtime to parse it, copy an older tool map into the Skill, or add an adapter between the Agent and Pen.
 
-Continue only when discovered help proves `get_editor_state`, `batch_get`, `batch_design`, `snapshot_layout`, `get_screenshot`, preview output, and `save()`. Version text alone is insufficient. Unknown, partial, or missing capabilities fail closed.
+Continue only when the live CLI exposes headless interactive output, explicit preview output, state/schema read, document mutation, structural read-back, save, and exit. In Pen 0.3.1 these operations include `get_app_state`, `get_guidelines`, `execute`, `get_screenshot`, `save()`, and `exit()`; use their current live-help signatures rather than memorized parameters.
 
-## Prepare one approved input
+## Prepare safe new targets
 
-Resolve the absolute Delivery root. `draft/experience/` and every design/output/preview parent must already be a real directory beneath that root; no component may be a symbolic link. All three CLI paths are Delivery-relative, begin with `draft/experience/`, contain no traversal, and are distinct. The design file must exist as regular UTF-8 text. The `.pen` output and `.png` preview must not exist; final publication uses filesystem hard links that reject existing destinations.
+Resolve the explicit Delivery root. Keep the `.pen` output and PNG preview under real, non-symbolic-link directories inside `draft/experience/`. Choose distinct targets that do not exist and never overwrite a prior attempt or approved artifact. Verify that the final `draft/experience/brief.md` is bound by `approve-brief`; do not edit it after approval.
 
-Verify that `draft/experience/brief.md` was bound by the successful `approve-brief` event and already contains the explicit PM/Owner approval words/date. Do not edit that Brief after approval. Create the worksheet, manifest, mutation input, Pen source, read-back, and preview only after this gate.
+Create `experience/manifest.md` after Brief approval. Copy every approval-bound Coverage ID, Markdown locator, page/state, and short runtime relationship from the Brief. This manifest is the audit plan and lifecycle evidence; a separate mutation DSL file is not required.
 
-First copy [pen-design-input.md](../assets/pen-design-input.md) to the Delivery and complete one coverage row for every approved Brief page/state. Copy each Coverage ID and its short relationship statement unchanged from the approved Brief. The separate design file contains only visible `batch_design` DSL input that is auditable and strictly derived from those rows. Use the current discovered contract's full `Insert`, `Update`, and `Delete` operation names; shorthand operation calls are unsupported and the runner rejects them before Pen starts. Captured variables and unique display-name string parents are both allowed. Brief approval does not imply approval of raw DSL. The file does not contain the worksheet, `batch_design(...)`, state/layout/screenshot calls, `save()`, `exit()`, or an interactive transcript. Treat this file as the only mutation payload and hash it in `experience/manifest.md`.
+## Keep one direct interactive process
 
-## Run one mechanical session
+Start Pen directly with the live-help-documented equivalents of:
 
-Resolve this Skill's sibling runner and call it once:
-
-```bash
-node <skill-root>/scripts/run-pen-session.mjs \
-  --root <absolute-Delivery-root> \
-  --design-file draft/experience/prototype-design.txt \
-  --out draft/experience/prototype.pen \
-  --preview draft/experience/prototype.png \
-  --json
+```text
+pen interactive --out <new-output.pen> --enable-preview --preview-output <new-preview.png>
 ```
 
-Never run `pen interactive` by hand, start a nested Pen Agent, use Pen prompt/managed-Agent generation, or route through a PM MCP/plugin. The runner uses Node 20+ with no third-party dependency and spawns exactly one `pen interactive` child with `shell: false`, `--enable-preview`, and `--preview-output`. That one child creates one new document and receives exactly these separate physical lines in order:
+Use the host's supported interactive-terminal mechanism to retain this process and send later input to it. A yielded or still-running process is not a failure. Do not start another Pen process for the next command, and do not route through a wrapper script, Agent Mode, a nested model, MCP, or a plugin.
 
-1. `get_editor_state` for the new document;
-2. exactly one `batch_design` containing the Brief-derived design file;
-3. whole-document `snapshot_layout` with no cross-session node ID;
-4. `get_screenshot` with the documented `document` target;
-5. `save()` on its own line;
-6. whole-document `batch_get` read-back with no node ID;
-7. `exit()` on its own line.
+In the same process:
 
-No second interactive process or recovery session is allowed. In particular, never reuse node IDs observed in another process, and never append `save()` or `exit()` to a tool line. The preview is produced by that same session at the explicit preview path; a separate node export would require IDs and is not part of this new-document contract.
+1. Read app state/schema before mutation.
+2. Load only relevant design guidelines and inspect the current document.
+3. Create the approved pages/states with direct interactive mutations in bounded, reviewable batches.
+4. Read back visible names/content and computed bounds; fix missing, clipped, overlapping, or contradictory states.
+5. Confirm every Coverage ID and approved relationship in the manifest maps to the intended visible evidence.
+6. Generate the configured preview, save to the requested `.pen`, verify both files exist, then exit cleanly.
 
-The runner creates one high-entropy mode-700 temporary directory under `draft/experience/`; Pen sees only its temporary `.pen` and `.png` paths. After validating those bytes, the runner re-checks that both final paths are absent and hard-links the verified `.pen` first, then the verified preview. `link()` is the publication commit: it does not overwrite an existing destination, and the runner never unlinks or renames a final path.
+Do not treat a command echo, exit code, or preview-file existence by itself as proof of success. Inspect Pen responses for errors and confirm state/read-back/save results. Preserve non-secret stderr/stdout when startup fails; this keeps errors such as authentication failure or an occupied transport socket visible without a wrapper translating them.
 
-If the first link conflicts, the foreign path remains and nothing is published. If the second link conflicts or otherwise fails, the first verified final remains as an explicitly reported partial publish; error details include `published_paths`, the failed/conflicting path, and `partial_publish=true`. Do not roll back that final or claim complete evidence.
+## Separate structural and visual evidence
 
-Temporary cleanup has a two-phase boundary. Before deleting anything, the runner checks the recorded directory identity. After an early failure it removes only an identity-matched empty runner-owned directory; any unexpected entry, partial artifact set, symlink, or identity mismatch preserves the whole directory without deleting an entry. After both temporary artifacts have already passed full verification, cleanup still requires exactly `output.pen` and `preview.png`, both regular non-symlink files, before unlinking either name and removing the empty directory.
+Structural read-back can establish node names, text, hierarchy, and computed bounds. It cannot establish typography quality, color harmony, spacing feel, or whether the rendered result is visually acceptable.
 
-## Fail closed and record evidence
+- If the Agent can inspect images, inspect the exact generated PNG and record `agent-visual` plus the result.
+- If it cannot, record `human-required`, present the exact PNG to the Owner by attachment/rendering or an explicit local path, and state that the Agent has not visually verified it.
+- If the Owner cannot access the PNG either, stop with Experience pending.
 
-Success requires zero exit status with no signal, timeout, or textual Pen `Error`; a confirmed state read, mutation, clean layout, strictly decoded base64 PNG screenshot, exact temporary save path, and non-empty document read-back; plus a fatal-UTF-8-decoded, non-empty JSON `.pen` file and PNG-signature preview at the requested final paths. Final and temporary files must share the same inode immediately after each link; final bytes and hashes are read back before temporary cleanup.
+Only a later context-bound Owner reply after the preview was presented can approve it. Never infer visual approval from Brief approval, save success, or structured read-back.
 
-This is a non-adversarial same-UID boundary, not protection against a malicious process running as the same operating-system user and swapping files between checks. The hard-link operation itself remains atomic and no-overwrite. Do not describe the broader workflow as an absolute security boundary.
+## Fail closed without retry loops
 
-Any runner failure ends the current action immediately. Do not start an automatic or manual Pen retry. If the Owner later explicitly requests another attempt, treat it as a new authorized action with new targets, not as part of this invocation. Report `tool-unavailable` evidence plus one product impact and ask for explicit Owner risk acceptance; do not silently switch tools or claim completion.
+Any missing executable, unsupported version, unavailable authentication/service, missing initial prompt, Pen error, lost interactive process, failed save/read-back/preview, or absent output ends the current action. Report the exact non-secret limitation and one product impact. Do not automatically retry, delete a global Pen socket, switch tools, or claim formal Experience completion. A later Owner-authorized attempt uses fresh targets.
 
-Windows package managers commonly expose Pen as `pen.cmd`, which cannot be safely proven launchable with this runner's required shell-free policy. The default runner therefore reports `platform-unsupported` on Windows instead of enabling a shell. Do not claim Windows support until a native shell-free executable contract is verified.
-
-Record the doctor fingerprint, design/output/preview hashes, one-process runner result, layout/screenshot/save/read-back results, coverage, and external asset provenance in `experience/manifest.md`.
-
-## Review boundary
-
-Reviewers never mutate an authoritative Candidate or Release `.pen`. Use a read-only capability or caller-authorized isolated copy, otherwise inspect exact exports/read-back evidence and disclose the structural limitation.
+Record the Pen version, live-help check, one-process direct session result, structural read-back, visual-review mode, preview presentation, save/exit result, coverage, output identities, and external-asset provenance in `experience/manifest.md`.

@@ -1,4 +1,0 @@
-Usage: pen interactive [options]
-
-# inspect_canvas()
-# mutate_canvas()

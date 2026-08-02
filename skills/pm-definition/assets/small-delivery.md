@@ -2,6 +2,14 @@
 
 > Bundle-relative path：`delivery.md`；Draft 与 Release 保持相同内部路径，阶段、检查和 current pointer 只在根 `START-HERE.md` 维护。
 
+## Definition working state
+
+- `known_required_open` / `blocking_current_slice`：{N} / {N}
+- `deferred` / `owner_confirmation`：{N} / {N}
+- `estimated_sequential_rounds`：{N or unknown}
+- `presentation_mode`：`unset | guided | small-batch | checklist`
+- `current_decision_node`：{bundle-relative path#DEC-* or none}
+
 ## Scope and authority
 
 - Delivery / scope：`DEL-{slug}` / `Change | Capability`

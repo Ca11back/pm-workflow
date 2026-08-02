@@ -1,7 +1,0 @@
-pen.dev newer interactive shell
-
-# get_app_state({ includeSchema })
-# execute({ operations })
-# save_document()
-# capture_screenshot({ nodeId })
-# export_artifacts({ nodeIds, outputDir })

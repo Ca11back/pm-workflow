@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, cp, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, unlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { test } from "node:test";
@@ -670,24 +670,15 @@ test("init refuses a non-empty V1-style root", async (t) => {
   assert.equal(await readFile(path.join(root, "START-HERE.md"), "utf8"), "legacy\n");
 });
 
-test("doctor JSON uses fixture capability evidence and stable unavailable exit", () => {
-  const supported = cli(["doctor", "--pen-help-file", path.join(candidateRoot, "tests", "fixtures", "pen", "current-0.3-help.txt")]);
-  assert.equal(supported.status, 0);
-  assert.equal(supported.output.pen.contract, "pen-interactive-0.3-current");
-  const unsupported = cli(["doctor", "--pen-help-file", path.join(candidateRoot, "tests", "fixtures", "pen", "unknown-help.txt")]);
-  assert.equal(unsupported.status, 4);
-  assert.equal(unsupported.output.error.code, "pen-contract");
-});
+test("doctor checks only the portable runtime boundary and never probes Pen", () => {
+  const result = cli(["doctor"]);
+  assert.equal(result.status, 0);
+  assert.equal(result.output.command, "doctor");
+  assert.equal(result.output.node.supported, true);
+  assert.equal(result.output.delivery, null);
+  assert.equal(Object.hasOwn(result.output, "pen"), false);
 
-test("doctor rejects valid-looking Pen help from nonzero and signaled processes", async (t) => {
-  const fixturePath = path.join(candidateRoot, "tests", "fixtures", "pen", "current-0.3-help.txt");
-  for (const [name, ending] of [["exit", "process.exit(7);"], ["signal", "process.kill(process.pid, 'SIGTERM');"]]) {
-    const bin = await newRoot(t, `fake-pen-${name}-`);
-    const executable = path.join(bin, "pen");
-    await writeFile(executable, `#!${process.execPath}\nconst fs=require('node:fs');process.stdout.write(fs.readFileSync(${JSON.stringify(fixturePath)},'utf8'));${ending}\n`);
-    await chmod(executable, 0o755);
-    const result = cli(["doctor"], { env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` } });
-    assert.equal(result.status, 4, `${name}: ${JSON.stringify(result)}`);
-    assert.equal(result.output.error.code, "pen-unavailable", name);
-  }
+  const removedCompatibilityOption = cli(["doctor", "--pen-help-file", "ignored.txt"]);
+  assert.equal(removedCompatibilityOption.status, 2);
+  assert.equal(removedCompatibilityOption.output.error.code, "unknown-option");
 });
