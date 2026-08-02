@@ -75,9 +75,9 @@ npx skills add <owner>/<repo> --skill '*'
 - V1 中任何自由文本 approval 都只作为未信任历史证据保存；migration 一律停在 Definition，必须重新记录明确的 V2 Owner approval 才能进入 Experience。
 - `start-change` 把上一轮 Release、sending 和 receipt 一并归档，当前轮重置为未准备/pending；新 Release 不继承旧回执。
 
-Pen 只支持本机 0.3.1 或更高版本的 direct interactive 路线。`pm-experience` 直接运行 `pen version`、`pen status` 与当前 `pen interactive --help`，再由当前 Agent 启动并持续操作同一个 `pen interactive` 进程；不使用 Pen Agent Mode、嵌套模型、MCP/plugin，也没有 Node runner、提示符解析或版本命令适配层。实时 help 是该次会话的操作说明，runtime 不解释 Pen 工具协议。
+Pen 只支持本机 0.3.1 或更高版本的 direct interactive 路线。当前 Agent 读取实时 help 并操作一个 `pen interactive` 进程；不使用 Pen Agent Mode、嵌套模型、MCP/plugin、runner 或版本适配层，runtime 也不解释 Pen 协议。
 
-Brief 批准后，Agent 为 `.pen` 与 PNG 选择 `draft/experience/` 下不存在的新目标，先读取 state/schema 与相关 guidelines，再按批准的 Coverage ID 直接设计、结构回读、检查布局、保存并退出。Pen 的 exit code 不是唯一成功条件：初始提示、命令错误、read-back、保存结果和最终文件都必须实际确认。任何启动、认证、服务、交互、保存或预览失败都会停止当前动作，不自动重试、删除全局 socket、切换工具或声称完成。
+启动结果按 `running -> ready | terminated` 处理：后台进程 handle 必须保留并继续同一会话；空输出或尚未出现 prompt 只表示 `running`。只有明确终止及其终态才能记录 `tool-unavailable`；进程仍活着时不得检查最终文件推断失败、填写失败证据、请求降级或新开 Pen。到达 `ready` 后才进行设计、回读、保存、预览和 manifest 记录。
 
 PNG 预览必须在 preview approval 前交给产品负责人。能读取图像的 Agent 先做视觉检查再展示；不能读取图像的 Agent 必须明确披露限制，通过宿主附件/渲染或精确本地路径让产品负责人亲自审阅，并等待上下文明确的回复。结构回读不能冒充视觉检查；如果 Agent 与负责人都无法访问 PNG，Experience 保持阻塞。
 

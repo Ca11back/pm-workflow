@@ -81,15 +81,20 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   const definitionSkill = await readFile(path.join(candidateRoot, "skills", "pm-definition", "SKILL.md"), "utf8");
   const readme = await readFile(path.join(candidateRoot, "README.md"), "utf8");
   for (const text of [skill, reference, readme]) {
-    assert.match(text, /one .*interactive process|one-process|同一个 `pen interactive` 进程/);
-    assert.match(text, /do not exist|must not exist|never overwrite|不.*覆盖|不存在.*新目标/);
-    assert.match(text, /symbolic[- ]links?|symlinks|符号链接/);
+    assert.match(text, /one .*interactive process|one-process|same process|一个 `pen interactive` 进程/);
     assert.match(text, /live .*help|实时 help|live interactive help/);
   }
-  assert.match(skill, /Run the installed Pen CLI directly/);
+  for (const text of [skill, reference]) {
+    assert.match(text, /do not exist|must not exist|never overwrite|不.*覆盖|不存在.*新目标/);
+    assert.match(text, /symbolic[- ]links?|symlinks|符号链接/);
+  }
   assert.match(skill, /Do not invoke Pen Agent Mode/);
-  assert.match(reference, /do not[^\n]*add an adapter between the Agent and Pen/);
-  assert.match(reference, /A yielded or still-running process is not a failure/);
+  assert.match(reference, /rather than[^\n]*adapter|do not[^\n]*adapter between the Agent and Pen/);
+  assert.match(reference, /Never project a structured launch result down to stdout alone/);
+  assert.match(reference, /Empty output from a yield is pending, not failure/);
+  assert.match(reference, /process alive; output empty or prompt not seen yet.*`running`/);
+  assert.match(reference, /explicit error, or process ended.*`terminated`/);
+  assert.match(reference, /While `running`, do not inspect final output files as startup evidence/);
   const briefTemplateStep = skill.indexOf("[experience-brief.md](assets/experience-brief.md)");
   const manifestTemplateStep = skill.indexOf("[experience-manifest.md](assets/experience-manifest.md)");
   const briefApprovalStep = skill.indexOf("call `approve-brief`");
@@ -106,14 +111,20 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(experienceManifest, /\| Coverage ID \| Markdown locator .*\| Runtime relationship \|/);
   assert.match(experienceManifest, /Candidate artifact.*`experience\/brief\.md`/);
   assert.match(experienceManifest, /Candidate artifact.*`experience\/manifest\.md`/);
-  assert.match(experienceManifest, /only after `approve-brief` succeeds/);
+  assert.match(experienceManifest, /only after `approve-brief`/);
   assert.match(experienceManifest, /first bound by `approve-preview`/);
+  assert.match(experienceManifest, /Process state：`running \| ready \| terminated`/);
+  assert.match(experienceManifest, /Resumable handle retained/);
+  assert.match(experienceManifest, /Empty output while the process is alive remains `running`/);
+  assert.match(experienceManifest, /A live or unresolved process stays `pending`, never `skipped-risk`/);
+  for (const removedField of [/Route discovery evidence/, /Capability check evidence/, /Direct-operation attempt/, /Retry result/]) {
+    assert.doesNotMatch(experienceManifest, removedField);
+  }
   assert.match(experienceManifest, /Agent visual capability \/ inspection/);
   assert.match(experienceManifest, /Preview presentation to Owner/);
   assert.match(experienceManifest, /Structural read-back is not visual inspection/);
   assert.match(skill, /If the Agent cannot inspect images/);
   assert.match(skill, /If neither the Agent nor the Owner can access the preview, keep Experience blocked/);
-  assert.match(reference, /do not edit it after approval/i);
   assert.match(reviewMethod, /Evidence-canvas layout is not runtime behavior authority/);
   assert.match(reviewMethod, /structural evidence is not a visual substitute/);
   assert.match(reviewTemplate, /relationship statement/);

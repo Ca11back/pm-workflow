@@ -37,7 +37,7 @@ Apply proportionally to the selected Candidate and intended use. A probe determi
 ## Experience consistency
 
 - Does the current scope change any user-visible page, action, copy, visibility, state, feedback, or result, regardless of request size or layout?
-- If yes, is there a completed Pen `implementation-target`, an authoritative `existing-reference` exact for every required normal/material state, or explicit `skipped-risk` evidence naming Owner skip/tool unavailability and one concrete impact? For tool unavailability, does evidence include version/status/help discovery, the direct interactive attempt, exact non-secret failure, and the applicable no-retry or later-authorized result? If no, does `not-needed` state the reason?
+- If yes, is there a completed Pen `implementation-target`, an authoritative `existing-reference` exact for every required normal/material state, or explicit `skipped-risk` evidence naming Owner skip/tool unavailability and one concrete impact? For tool unavailability, does the launch state show explicit termination plus its exact non-secret result, rather than a live/pending process? If no, does `not-needed` state the reason?
 - Before the first Pen mutation, did `experience/brief.md` already exist with explicit, dated PM/Owner acceptance of the concrete scope/fidelity, rather than only generic permission to complete the workflow?
 - Is the artifact an `exploration` or `implementation-target`, never a parallel behavior authority?
 - Is any `exploration` artifact still `pending` in Definition and excluded from Candidate readiness?
