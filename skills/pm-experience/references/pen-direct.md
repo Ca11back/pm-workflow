@@ -8,7 +8,7 @@ Continue only when the live help exposes headless output, preview output, state/
 
 Start one interactive process with the live-help equivalent of `pen interactive --out <new-output.pen> --enable-preview --preview-output <new-preview.png>`.
 
-Observe the complete launch result: output, process liveness or termination, and the resumable process handle/identifier when it is still running. Never project a structured launch result down to stdout alone.
+Before launch, identify how the current host resumes an interactive terminal. Observe the complete launch result: output, liveness or termination, and any resumable terminal/session/job handle or channel. If launch yields, persist that handle before the surrounding tool call ends and send every later input through the same channel. Output text is not a handle; never project a structured launch result down to stdout alone. If the host exposes no resumable interactive channel, stop before launch and report a host-capability blocker.
 
 | Observed state | Meaning | Required action |
 | --- | --- | --- |

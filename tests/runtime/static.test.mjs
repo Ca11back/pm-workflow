@@ -90,6 +90,8 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   }
   assert.match(skill, /Do not invoke Pen Agent Mode/);
   assert.match(reference, /rather than[^\n]*adapter|do not[^\n]*adapter between the Agent and Pen/);
+  assert.match(reference, /Output text is not a handle/);
+  assert.match(reference, /persist that handle before the surrounding tool call ends/);
   assert.match(reference, /Never project a structured launch result down to stdout alone/);
   assert.match(reference, /Empty output from a yield is pending, not failure/);
   assert.match(reference, /process alive; output empty or prompt not seen yet.*`running`/);
