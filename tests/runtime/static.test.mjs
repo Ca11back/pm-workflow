@@ -58,11 +58,13 @@ test("pm-delivery bootstrap order matches the runtime's empty-root and actor con
 test("pm-definition keeps approval-bound contracts free of mutable Experience snapshots", async () => {
   const skill = await readFile(path.join(candidateRoot, "skills", "pm-definition", "SKILL.md"), "utf8");
   const templateNames = ["small-delivery.md", "capability-slice.md", "product-foundation.md"];
-  assert.match(skill, /do not record the current Experience route, lifecycle status, generated source, preview, or Pen node bindings/);
+  assert.match(skill, /do not record the current Experience route, lifecycle status, generated source, preview, or Pen node bindings/i);
   assert.match(skill, /never mutate an approved Definition file merely to refresh lifecycle prose/);
+  assert.match(skill, /persists or changes asynchronously/);
   for (const name of templateNames) {
     const text = await readFile(path.join(candidateRoot, "skills", "pm-definition", "assets", name), "utf8");
     assert.match(text, /## Experience requirements/);
+    assert.match(text, /Required journey closure/);
     assert.match(text, /Lifecycle authority/);
     assert.match(text, /experience\/manifest\.md/);
     assert.doesNotMatch(text, /Entry summary|Experience source \/ preview|Experience behavior sync/);
@@ -92,7 +94,7 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(reference, /rather than[^\n]*adapter|do not[^\n]*adapter between the Agent and Pen/);
   assert.match(reference, /Output text is not a handle/);
   assert.match(reference, /persist that handle before the surrounding tool call ends/);
-  assert.match(reference, /Never project a structured launch result down to stdout alone/);
+  assert.match(reference, /Never project a structured launch result down to stdout alone/i);
   assert.match(reference, /Empty output from a yield is pending, not failure/);
   assert.match(reference, /process alive; output empty or prompt not seen yet.*`running`/);
   assert.match(reference, /explicit error, or process ended.*`terminated`/);
@@ -104,9 +106,14 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(skill, /Do not replace the Brief template with an ad hoc file/);
   assert.match(skill, /Do not bind `draft\/experience\/manifest\.md` here/);
   assert.match(skill, /After `approve-brief` succeeds, do not edit the approved Brief/);
-  assert.match(skill, /copy every approved Coverage ID and relationship statement unchanged/);
+  assert.match(skill, /behavior-preserving Brief scope\/fidelity\/coverage corrections return to Experience/);
+  assert.match(skill, /copy every approved Coverage ID, relationship statement, and Journey ID unchanged/);
   assert.match(experienceBrief, /\| Coverage ID \| Markdown locator .*\| Runtime relationship \|/);
   assert.match(experienceBrief, /approval-bound Coverage IDs and relationship values must be copied unchanged/);
+  assert.match(experienceBrief, /## Journey closure/);
+  assert.match(experienceBrief, /\| Journey ID \| First entry and initiating path \|/);
+  assert.match(experienceBrief, /Every visible navigation, action, or return affordance/);
+  assert.match(experienceBrief, /ordered unique list of Coverage IDs/);
   assert.match(experienceBrief, /Keep approval words\/date `pending` while presenting this Brief/);
   assert.match(experienceBrief, /Never predict or fabricate the reply/);
   assert.match(experienceBrief, /After that event, do not edit this Brief/);
@@ -115,6 +122,11 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(experienceManifest, /Candidate artifact.*`experience\/manifest\.md`/);
   assert.match(experienceManifest, /only after `approve-brief`/);
   assert.match(experienceManifest, /first bound by `approve-preview`/);
+  assert.match(experienceManifest, /## Journey closure map/);
+  assert.match(experienceManifest, /ordered unique Coverage sequence unchanged/);
+  assert.match(experienceManifest, /Journey closure read-back/);
+  assert.match(experienceManifest, /Dangling affordances/);
+  assert.match(experienceManifest, /Re-entry \/ retrieval coverage/);
   assert.match(experienceManifest, /Process state：`running \| ready \| terminated`/);
   assert.match(experienceManifest, /Resumable handle retained/);
   assert.match(experienceManifest, /Empty output while the process is alive remains `running`/);
@@ -127,10 +139,21 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(experienceManifest, /Structural read-back is not visual inspection/);
   assert.match(skill, /If the Agent cannot inspect images/);
   assert.match(skill, /If neither the Agent nor the Owner can access the preview, keep Experience blocked/);
+  assert.match(skill, /start-draft-revision/);
+  assert.match(skill, /--return-phase experience/);
+  assert.match(skill, /`definition` for behavior/);
+  assert.match(skill, /every changed approved artifact/);
+  assert.match(reference, /explicit pre-Candidate Draft-revision path/);
   assert.match(reviewMethod, /Evidence-canvas layout is not runtime behavior authority/);
+  assert.match(reviewMethod, /Independently derive critical journeys/);
+  assert.match(reviewMethod, /dangling target/);
   assert.match(reviewMethod, /structural evidence is not a visual substitute/);
   assert.match(reviewTemplate, /relationship statement/);
+  assert.match(reviewTemplate, /Journey closure \/ re-entry check/);
+  assert.match(reviewTemplate, /Dangling-affordance check/);
   assert.match(reviewProbes, /relationship statement/);
+  assert.match(reviewProbes, /persistent or asynchronously changing user-visible object/);
+  assert.match(reference, /every visible navigation\/action\/return target/);
   for (const text of [skill, reference, experienceBrief, experienceManifest, reviewTemplate, reviewMethod, reviewProbes, readme]) {
     assert.doesNotMatch(text, /mutually-exclusive with <Coverage ID>|coexists with <Coverage ID>|independent example/);
   }
@@ -142,6 +165,11 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
     assert.doesNotMatch(text, /batch_design|get_editor_state|snapshot_layout/);
     assert.doesNotMatch(text, /contract fingerprint|compatibility adapter|兼容层/);
   }
+  for (const text of [definitionSkill, experienceBrief, experienceManifest, reference, reviewMethod, reviewProbes]) {
+    assert.doesNotMatch(text, /订单|我的|Orders|Profile/, "journey closure must not require product-specific screens");
+  }
+  assert.match(readme, /`start-draft-revision`/);
+  assert.match(readme, /Candidate 后仍只走 Finding 修订路径/);
 });
 
 test("017 interaction improvements remain integrated across the Skill handoffs", async () => {

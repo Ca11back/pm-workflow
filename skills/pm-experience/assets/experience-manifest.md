@@ -42,6 +42,14 @@ Copy each approval-bound Coverage ID and short relationship statement unchanged 
 | --- | --- | --- | --- | --- | --- |
 | `PAGE-01-NORMAL` | `delivery.md#RULE-001` | `experience/prototype.pen#<node-id-or-visible-name>` | {preview/page/state} | {approved relationship statement} | `synced | drift | unverified` |
 
+## Journey closure map
+
+Copy every approval-bound Journey ID and its ordered unique Coverage sequence unchanged from `experience/brief.md`, then record the observed Pen/reference route.
+
+| Journey ID | Approved Coverage path | Observed Pen/reference path | Closure result |
+| --- | --- | --- | --- |
+| `JNY-001` | {Coverage ID sequence} | {Pen node/reference sequence} | `closed | gap | unverified` |
+
 ## Direct-operation evidence
 
 - App state / schema read：{result}
@@ -49,6 +57,9 @@ Copy each approval-bound Coverage ID and short relationship statement unchanged 
 - Direct mutation summary：{Brief-derived visible changes}
 - Structural/layout read-back：{nodes/content/bounds, problems, fixes, final result}
 - Coverage read-back：{Coverage IDs and states compared with Brief and Markdown}
+- Journey closure read-back：{every Journey ID checked from entry through immediate result, later re-entry/retrieval when applicable, and recovery/terminal result}
+- Dangling affordances：{`none`, or every visible navigation/action/return label lacking a covered target and its return locator}
+- Re-entry / retrieval coverage：{Coverage IDs and Pen/reference nodes, or not applicable with reason}
 - Preview file result：{exact PNG path, existence, and non-secret result}
 - Agent visual capability / inspection：`agent-visual | human-required` / {result or explicit limitation}
 - Preview presentation to Owner：`attached | rendered | local-path | unavailable` / {evidence/date}
@@ -62,7 +73,7 @@ Copy each approval-bound Coverage ID and short relationship statement unchanged 
 - PM/Owner feedback：{plain-language feedback}
 - PM/Owner preview approval words / date：{`pending` until a later explicit reply; then exact approval words and date}
 - Behavior or visual drift：{bundle-relative return locator or `none`}
-- Missing coverage：{roles/pages/states/scenarios or `none`}
+- Missing coverage：{roles/pages/states/scenarios/journeys/re-entry/affordance targets or `none`}
 - Experience status：`pending | completed | skipped-risk`
 - Experience reason：{plain-language reason or `tool-unavailable`}
 - Product risk：{one concrete product risk caused by the unavailable direct route; otherwise `none`}

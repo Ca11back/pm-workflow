@@ -38,6 +38,7 @@ const EVENT_TYPES = Object.freeze([
   "definition-approved",
   "brief-approved",
   "preview-approved",
+  "draft-revision-started",
   "candidate-frozen",
   "review-recorded",
   "finding-resolution-recorded",
@@ -55,6 +56,7 @@ const EVENT_PAYLOAD_KEYS = Object.freeze({
   "definition-approved": ["approval_evidence"],
   "brief-approved": ["approval_evidence", "experience_route"],
   "preview-approved": ["approval_evidence", "experience_route"],
+  "draft-revision-started": ["return_phase", "revision_evidence"],
   "candidate-frozen": ["candidate_id", "candidate_path", "manifest_sha256", "draft_revision"],
   "review-recorded": [
     "review_id",
@@ -124,6 +126,9 @@ const COMMAND_FLAGS = Object.freeze({
   ],
   "approve-preview": [
     "root", "expect-revision", "artifact", "evidence", "experience-route", "actor-role", "actor-label", "json",
+  ],
+  "start-draft-revision": [
+    "root", "expect-revision", "return-phase", "artifact", "evidence", "actor-role", "actor-label", "json",
   ],
   "freeze-candidate": ["root", "expect-revision", "candidate-id", "actor-role", "actor-label", "json"],
   "record-review": [
@@ -665,6 +670,21 @@ export function reduceEvent(previousState, event) {
       state.next_action = "冻结当前 Draft 为新的不可变 Candidate";
       break;
     }
+    case "draft-revision-started": {
+      assertReducer(state.phase === "experience", "Candidate 前修订只能从 Experience 阶段开始。");
+      assertReducer(!state.candidate && !state.review, "已有 Candidate/Review 必须使用 Finding 修订路径。");
+      state.draft_revision += 1;
+      if (event.payload.return_phase === "definition") state.approvals.definition = null;
+      state.approvals.brief = null;
+      state.approvals.preview = null;
+      state.experience_route = null;
+      state.phase = event.payload.return_phase;
+      state.status = "blocked";
+      state.blocker = "Candidate 前反馈已开启新的 Draft revision；旧的下游批准已失效";
+      state.next_skill = event.payload.return_phase === "definition" ? "pm-definition" : "pm-experience";
+      state.next_action = event.payload.return_phase === "definition" ? "核对修订后的 Definition 并重新批准" : "核对修订后的 Experience Brief 并重新批准";
+      break;
+    }
     case "candidate-frozen": {
       assertReducer(state.phase === "experience", "Candidate 只能从 Experience 阶段冻结；已有 Candidate 必须先走修订与重批路径。");
       assertReducer(Boolean(state.approvals.definition && state.approvals.brief && state.approvals.preview), "批准链不完整，不能冻结 Candidate。");
@@ -1012,6 +1032,35 @@ const EVENT_CONTRACTS = Object.freeze({
     },
     state: (event, state) => assertReducer(event.payload.experience_route === state.experience_route, "Experience 路线与 Brief 不一致。"),
   },
+  "draft-revision-started": {
+    roles: ["product-owner"],
+    payload(payload) {
+      assertEnum(payload.return_phase, ["definition", "experience"], "return_phase");
+      assertNonEmptyString(payload.revision_evidence, "revision_evidence");
+    },
+    artifacts: (event) => assertArtifactPrefix(event, "draft/"),
+    state(event, state) {
+      assertReducer(state.phase === "experience", "Candidate 前修订只能从 Experience 阶段开始。");
+      assertReducer(!state.candidate && !state.review, "已有 Candidate/Review 必须使用 Finding 修订路径。");
+      if (event.payload.return_phase === "experience") {
+        assertReducer(Boolean(state.approvals.definition), "返回 Experience 需要保留有效 Definition approval。");
+        assertReducer(Boolean(state.approvals.brief), "Brief 尚未批准时可直接修改，无需开启 Experience Draft revision。");
+      }
+      const affectedNames = event.payload.return_phase === "definition" ? ["definition", "brief", "preview"] : ["brief", "preview"];
+      const priorByPath = new Map();
+      for (const name of affectedNames) {
+        for (const artifact of state.approvals[name]?.artifacts ?? []) {
+          if (!priorByPath.has(artifact.path)) priorByPath.set(artifact.path, new Set());
+          priorByPath.get(artifact.path).add(artifact.sha256);
+        }
+      }
+      for (const artifact of event.artifacts) {
+        const priorHashes = priorByPath.get(artifact.path);
+        assertReducer(Boolean(priorHashes), `Candidate 前修订 artifact 不属于受影响的既有批准：${artifact.path}`, "revision-artifact");
+        assertReducer([...priorHashes].some((hash) => hash !== artifact.sha256), `Candidate 前修订 artifact hash 未变化：${artifact.path}`, "revision-artifact");
+      }
+    },
+  },
   "candidate-frozen": {
     roles: ["pm-agent", "product-owner"],
     payload(payload) {
@@ -1312,6 +1361,121 @@ async function artifactRecords(root, inputs, { requireAtLeastOne = true } = {}) 
   records.sort((a, b) => a.path.localeCompare(b.path, "en"));
   if (new Set(records.map((record) => portablePathKey(record.path))).size !== records.length) fail("artifact 路径在跨平台语义下重复。", { code: "non-portable-path" });
   return records;
+}
+
+function isUnresolvedApprovalValue(value) {
+  const normalized = value.trim().replace(/[。.]+$/u, "").trim();
+  return normalized.length === 0
+    || /[{}]/u.test(normalized)
+    || /^(?:待确认(?:后补充)?|pending|tbd|todo|unknown)$/iu.test(normalized);
+}
+
+function requireResolvedMarkdownField(text, pattern, label, code) {
+  const match = text.match(pattern);
+  if (!match || isUnresolvedApprovalValue(match[1])) fail(`${label} 缺失或仍是占位内容。`, { code });
+}
+
+async function readArtifactText(root, relativePath) {
+  const { target } = await resolveInside(root, relativePath, { expectedType: "file" });
+  return readFile(target, "utf8");
+}
+
+async function validateDefinitionExperienceRequirements(root, artifacts) {
+  let contractCount = 0;
+  for (const artifact of artifacts) {
+    if (!artifact.path.endsWith(".md")) continue;
+    const text = await readArtifactText(root, artifact.path);
+    if (!/^## Experience requirements\s*$/mu.test(text)) continue;
+    contractCount += 1;
+    requireResolvedMarkdownField(text, /^- Required (?:shared )?behavior coverage[：:]\s*(.+)$/mu, "Definition Experience behavior coverage", "definition-experience-requirements");
+    requireResolvedMarkdownField(text, /^- Required roles \/ pages \/ states[：:]\s*(.+)$/mu, "Definition Experience roles/pages/states", "definition-experience-requirements");
+    requireResolvedMarkdownField(text, /^- Required journey closure[：:]\s*(.+)$/mu, "Definition journey closure", "definition-experience-requirements");
+  }
+  if (!contractCount) fail("Definition approval 缺少 Experience requirements 合同。", { code: "definition-experience-requirements" });
+}
+
+function markdownSection(text, heading) {
+  const headingMatch = text.match(new RegExp(`^## ${heading}\\s*$`, "mu"));
+  if (!headingMatch) return null;
+  const afterHeading = text.slice(headingMatch.index + headingMatch[0].length);
+  const nextHeading = afterHeading.search(/^##\s/mu);
+  return nextHeading === -1 ? afterHeading : afterHeading.slice(0, nextHeading);
+}
+
+function requireResolvedJourneyRow(text, heading, label, code, requiredCellCount) {
+  const section = markdownSection(text, heading) ?? "";
+  const rows = section.split(/\r?\n/u).filter((line) => /^\|\s*`?JNY-[A-Za-z0-9-]+`?\s*\|/u.test(line));
+  const incomplete = rows.some((row) => {
+    const cells = markdownTableCells(row);
+    return cells.length < requiredCellCount || cells.slice(0, requiredCellCount).some((cell) => isUnresolvedApprovalValue(cell));
+  });
+  if (!rows.length || incomplete) fail(`${label} 缺少已完成的 Journey row。`, { code });
+  const ids = journeyIds(rows);
+  if (new Set(ids).size !== ids.length) fail(`${label} 含重复 Journey ID。`, { code });
+  return rows;
+}
+
+function markdownTableCells(row) {
+  const cells = row.split("|").slice(1);
+  if (cells.at(-1)?.trim() === "") cells.pop();
+  return cells.map((cell) => cell.trim());
+}
+
+function firstColumnIds(text) {
+  return [...text.matchAll(/^\|\s*`?([A-Z][A-Z0-9-]+)`?\s*\|/gmu)].map((match) => match[1]);
+}
+
+function journeyIds(rows) {
+  return rows.map((row) => row.match(/^\|\s*`?(JNY-[A-Za-z0-9-]+)`?\s*\|/u)?.[1]).filter(Boolean);
+}
+
+function orderedUniqueStructuredIds(value) {
+  const ids = [...value.matchAll(/\b([A-Z][A-Z0-9]*-[A-Z0-9-]+)\b/gu)].map((match) => match[1]).filter((id) => !id.startsWith("JNY-"));
+  return ids.filter((id, index) => ids.indexOf(id) === index);
+}
+
+async function validateBriefJourneyContract(root, artifacts) {
+  if (!artifacts.some((artifact) => artifact.path === "draft/experience/brief.md")) return;
+  const text = await readArtifactText(root, "draft/experience/brief.md");
+  requireResolvedMarkdownField(text, /^- Re-entry \/ retrieval[：:]\s*(.+)$/mu, "Experience Brief re-entry/retrieval", "experience-journey");
+  const rows = requireResolvedJourneyRow(text, "Journey closure", "Experience Brief journey closure", "experience-journey", 5);
+  const locatorMap = markdownSection(text, "Locator map") ?? "";
+  const coverageList = firstColumnIds(locatorMap);
+  const coverageIds = new Set(coverageList);
+  if (coverageIds.size !== coverageList.length) fail("Experience Brief Locator map 含重复 Coverage ID。", { code: "experience-journey" });
+  for (const row of rows) {
+    for (const match of row.matchAll(/\b([A-Z][A-Z0-9]*-[A-Z0-9-]+)\b/gu)) {
+      if (!match[1].startsWith("JNY-") && !coverageIds.has(match[1])) {
+        fail(`Experience Brief Journey 引用了未定义的 Coverage ID：${match[1]}`, { code: "experience-journey" });
+      }
+    }
+  }
+}
+
+async function validateManifestJourneyEvidence(root, artifacts) {
+  if (!artifacts.some((artifact) => artifact.path === "draft/experience/manifest.md")) return;
+  const text = await readArtifactText(root, "draft/experience/manifest.md");
+  const manifestRows = requireResolvedJourneyRow(text, "Journey closure map", "Experience manifest journey closure", "experience-journey-evidence", 4);
+  const brief = await readArtifactText(root, "draft/experience/brief.md");
+  const briefRows = requireResolvedJourneyRow(brief, "Journey closure", "Approved Experience Brief journey closure", "experience-journey-evidence", 5);
+  const approvedIds = [...new Set(journeyIds(briefRows))].sort();
+  const observedIds = [...new Set(journeyIds(manifestRows))].sort();
+  if (stableJson(approvedIds) !== stableJson(observedIds)) fail("Experience manifest Journey IDs 与已批准 Brief 不一致。", { code: "experience-journey-evidence" });
+  const briefSequences = new Map(briefRows.map((row) => {
+    const cells = markdownTableCells(row);
+    return [journeyIds([row])[0], orderedUniqueStructuredIds(cells.slice(1).join(" "))];
+  }));
+  for (const row of manifestRows) {
+    const cells = markdownTableCells(row);
+    const id = journeyIds([row])[0];
+    const observedSequence = orderedUniqueStructuredIds(cells[1] ?? "");
+    if (stableJson(briefSequences.get(id)) !== stableJson(observedSequence)) {
+      fail(`Experience manifest ${id} 的 approved Coverage path 与 Brief 不一致。`, { code: "experience-journey-evidence" });
+    }
+  }
+  requireResolvedMarkdownField(text, /^- Journey closure read-back[：:]\s*(.+)$/mu, "Experience journey closure read-back", "experience-journey-evidence");
+  requireResolvedMarkdownField(text, /^- Dangling affordances[：:]\s*(.+)$/mu, "Experience dangling-affordance audit", "experience-journey-evidence");
+  requireResolvedMarkdownField(text, /^- Re-entry \/ retrieval coverage[：:]\s*(.+)$/mu, "Experience re-entry/retrieval evidence", "experience-journey-evidence");
 }
 
 function assertArtifactsUnder(records, prefix, label) {
@@ -1673,6 +1837,17 @@ function assertNoIntegrityIssues(issues, scopes = undefined) {
   if (relevant.length) fail("当前证据或快照 hash 已漂移；先运行 reconcile/validate。", { exitCode: EXIT.INTEGRITY, code: "integrity", details: relevant });
 }
 
+function assertPreCandidateRevisionIntegrity(issues, returnPhase, artifactPaths) {
+  const allowedScopes = returnPhase === "definition"
+    ? new Set(["approval:definition", "approval:brief", "approval:preview"])
+    : new Set(["approval:brief", "approval:preview"]);
+  const unexpected = issues.filter((issue) => {
+    if (!allowedScopes.has(issue.scope)) return true;
+    return issue.kind !== "artifact-hash" || !artifactPaths.has(issue.path);
+  });
+  if (unexpected.length) fail("Candidate 前修订只能接纳由本次 artifact 明确绑定的批准 hash 变化。", { exitCode: EXIT.INTEGRITY, code: "integrity", details: unexpected });
+}
+
 async function transition(rootInput, options, operation, builder) {
   const root = await rootRealPath(rootInput);
   await validateControlledDirectories(root, { requireAll: true });
@@ -1682,7 +1857,7 @@ async function transition(rootInput, options, operation, builder) {
     const expected = expectedRevision(options);
     if (expected !== replayed.state.revision) fail(`revision 冲突：期望 ${expected}，当前 ${replayed.state.revision}。`, { exitCode: EXIT.CONFLICT, code: "revision-conflict", details: { expected, actual: replayed.state.revision } });
     const integrity = await validateStateIntegrity(root, replayed.state);
-    if (operation !== "record-finding-resolution") assertNoIntegrityIssues(integrity);
+    if (!["record-finding-resolution", "start-draft-revision"].includes(operation)) assertNoIntegrityIssues(integrity);
     await projectionWriteTargets(root);
     const built = await builder({ root, state: replayed.state, integrity });
     try {
@@ -1956,6 +2131,7 @@ async function executeCommand(command, options) {
     return transition(rootOption, options, command, async ({ root }) => {
       const artifacts = await artifactRecords(root, options.artifact);
       assertArtifactsUnder(artifacts, "draft/", "Definition approval artifacts");
+      await validateDefinitionExperienceRequirements(root, artifacts);
       return { event: { type: "definition-approved", actor: actorFrom(options), artifacts, payload: { approval_evidence: approvalEvidence(options) } } };
     });
   }
@@ -1965,6 +2141,7 @@ async function executeCommand(command, options) {
       const route = assertEnum(requireOption(options, "experience-route"), ["pen", "existing-reference", "not-needed"], "--experience-route");
       const artifacts = await artifactRecords(root, options.artifact);
       assertArtifactsUnder(artifacts, "draft/", "Brief approval artifacts");
+      await validateBriefJourneyContract(root, artifacts);
       return { event: { type: "brief-approved", actor: actorFrom(options), artifacts, payload: { approval_evidence: approvalEvidence(options), experience_route: route } } };
     });
   }
@@ -1974,7 +2151,20 @@ async function executeCommand(command, options) {
       const route = assertEnum(requireOption(options, "experience-route"), ["pen", "existing-reference", "not-needed"], "--experience-route");
       const artifacts = await artifactRecords(root, options.artifact);
       assertArtifactsUnder(artifacts, "draft/", "Preview approval artifacts");
+      await validateManifestJourneyEvidence(root, artifacts);
       return { event: { type: "preview-approved", actor: actorFrom(options), artifacts, payload: { approval_evidence: approvalEvidence(options), experience_route: route } } };
+    });
+  }
+  if (command === "start-draft-revision") {
+    return transition(rootOption, options, command, async ({ root, integrity }) => {
+      const returnPhase = assertEnum(requireOption(options, "return-phase"), ["definition", "experience"], "--return-phase");
+      const artifacts = await artifactRecords(root, options.artifact);
+      assertArtifactsUnder(artifacts, "draft/", "Candidate 前修订 artifacts");
+      assertPreCandidateRevisionIntegrity(integrity, returnPhase, new Set(artifacts.map((artifact) => artifact.path)));
+      return { event: { type: "draft-revision-started", actor: actorFrom(options), artifacts, payload: {
+        return_phase: returnPhase,
+        revision_evidence: approvalEvidence(options),
+      } } };
     });
   }
   if (command === "freeze-candidate") {

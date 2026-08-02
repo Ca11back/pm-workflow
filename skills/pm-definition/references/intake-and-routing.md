@@ -60,6 +60,8 @@ Before setting `blocking_current_slice=0` and moving to Experience, inspect ever
 
 `actor/authority | starting stage | event | guard | success result | failure/recovery | side effects`
 
+For each user-visible object that persists beyond the initiating flow or changes asynchronously, also determine how the same user later re-enters or retrieves its current result. Record a concrete path or an explicit not-applicable reason; do not assume a particular tab, list, account page, notification surface, or navigation model.
+
 Apply these probes only where they can change current behavior, and record irrelevant ones as not applicable:
 
 - visibility, initiation, approval, retry, cancellation, reversal, and result authority;
@@ -68,6 +70,7 @@ Apply these probes only where they can change current behavior, and record irrel
 - duplicate or concurrent actions;
 - timeout, failure, retry, and recovery;
 - cancellation/reversal and downstream notification or audit-visible result.
+- later re-entry/retrieval of persistent or asynchronously changing user-visible objects.
 
 `known_required_open=0` is necessary but not sufficient. `blocking_current_slice=0` is valid only when tuple coverage is unique, relevant probes are resolved or not applicable, and no behavior-changing `assumption` or `conflict` remains hidden. Questions that change user-visible behavior stay in Definition. Behavior-preserving Engineering Questions and clearly deferred future capabilities do not block the exit.
 

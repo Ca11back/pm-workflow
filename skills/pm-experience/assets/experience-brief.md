@@ -22,6 +22,7 @@
 - Roles / permissions：{who can see or act; mapped Markdown locators}
 - Actions / results / side effects：{mapped Markdown locators}
 - Exceptions / notifications / content commitments：{mapped Markdown locators}
+- Re-entry / retrieval：{how each persistent or asynchronously changing user-visible object is found later, or not applicable with reason; mapped Markdown locators}
 - Visual hierarchy / content direction：{choices that do not introduce new business behavior}
 - Runtime relationship：for every required state write one short plain-language statement derived from approved behavior, such as when it replaces, accompanies, or is unrelated to another state. Do not infer the statement from a future canvas.
 
@@ -33,6 +34,16 @@ Create one row for every required page/state. These approval-bound Coverage IDs 
 | --- | --- | --- | --- | --- | --- |
 | `PAGE-01-NORMAL` | `delivery.md#RULE-001` | {normal behavior} | {page / normal} | {relationship derived from approved behavior} | {normal-state visual target} |
 | `PAGE-01-EMPTY` | `delivery.md#SCN-002` | {empty behavior} | {page / empty} | {relationship derived from approved behavior} | {empty-state visual target} |
+
+## Journey closure
+
+Create one row for every critical user journey. Use Coverage IDs rather than assumed screen names. Include both the initiating path and later re-entry/retrieval when the object persists or changes asynchronously. For a non-visible route, record a specific not-applicable reason. Every visible navigation, action, or return affordance in the implementation target must resolve to a Coverage ID in one of these paths; omit affordances whose destinations are outside the approved scope.
+
+| Journey ID | First entry and initiating path | Immediate result | Later re-entry / retrieval | Recovery or terminal path |
+| --- | --- | --- | --- | --- |
+| `JNY-001` | {Coverage ID -> Coverage ID} | {Coverage ID / observable result} | {Coverage ID -> current result, or not applicable with reason} | {Coverage ID path or terminal result} |
+
+The approved Coverage sequence for each Journey is the ordered unique list of Coverage IDs read across its four path/result columns from left to right. Copy that sequence unchanged into the later manifest.
 
 ## Constraints and acceptance
 

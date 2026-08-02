@@ -24,19 +24,78 @@ async function newRoot(t, prefix = "delivery-") {
   return root;
 }
 
+const validBrief = [
+  "# Brief",
+  "",
+  "当前范围没有新增可见界面。",
+  "",
+  "## Required coverage",
+  "",
+  "- Re-entry / retrieval：用户通过既有入口再次查看当前状态；本测试不新增导航。",
+  "",
+  "## Locator map",
+  "",
+  "| Coverage ID | Markdown locator | Plain-language behavior | Required page/state | Runtime relationship | Expected Pen node purpose |",
+  "| --- | --- | --- | --- | --- | --- |",
+  "| `PAGE-01` | `delivery.md#RULE-001` | 查看当前状态 | 既有状态 | 独立既有页面 | 既有参考 |",
+  "",
+  "## Journey closure",
+  "",
+  "| Journey ID | First entry and initiating path | Immediate result | Later re-entry / retrieval | Recovery or terminal path |",
+  "| --- | --- | --- | --- | --- |",
+  "| `JNY-001` | `PAGE-01` | `PAGE-01` | `PAGE-01` | 当前状态保持可见 |",
+  "",
+].join("\n");
+
+function withJourneyEvidence(text) {
+  return [
+    text.trimEnd(),
+    "",
+    "## Coverage map",
+    "",
+    "| Coverage ID | Markdown locator | Pen node locator | Preview/state | Runtime relationship | Sync result |",
+    "| --- | --- | --- | --- | --- | --- |",
+    "| `PAGE-01` | `delivery.md#RULE-001` | existing reference `PAGE-01` | 既有状态 | 独立既有页面 | synced |",
+    "",
+    "## Journey closure map",
+    "",
+    "| Journey ID | Approved Coverage path | Observed Pen/reference path | Closure result |",
+    "| --- | --- | --- | --- |",
+    "| `JNY-001` | `PAGE-01` | existing reference `PAGE-01` | closed |",
+    "",
+    "- Journey closure read-back：JNY-001 已从既有入口核对到当前结果。",
+    "- Dangling affordances：none；本测试没有新增可见入口。",
+    "- Re-entry / retrieval coverage：PAGE-01 通过既有入口覆盖。",
+    "",
+  ].join("\n");
+}
+
+function withDefinitionExperience(text) {
+  return [
+    text.trimEnd(),
+    "",
+    "## Experience requirements",
+    "",
+    "- Required behavior coverage：delivery.md#RULE-001",
+    "- Required roles / pages / states：用户查看当前状态；无新增可见状态。",
+    "- Required journey closure：用户通过既有入口再次查看当前状态。",
+    "",
+  ].join("\n");
+}
+
 async function seedDraft(root) {
   await mkdir(path.join(root, "draft", "experience"), { recursive: true });
-  await writeFile(path.join(root, "draft", "delivery.md"), "# Delivery\n\n- RULE-001: 用户可以查看当前状态。\n");
-  await writeFile(path.join(root, "draft", "experience", "brief.md"), "# Brief\n\n当前范围没有新增可见界面。\n");
+  await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery\n\n- RULE-001: 用户可以查看当前状态。\n"));
+  await writeFile(path.join(root, "draft", "experience", "brief.md"), validBrief);
   await writeFile(path.join(root, "draft", "experience", "evidence.md"), "# Experience evidence\n\nnot-needed: 当前范围仅整理既有行为。\n");
-  await writeFile(path.join(root, "draft", "experience", "manifest.md"), [
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), withJourneyEvidence([
     "# Experience manifest",
     "",
     "- Candidate artifact：`experience/brief.md`",
     "- Candidate artifact：`experience/manifest.md`",
     "- Candidate artifact：`experience/evidence.md`",
     "",
-  ].join("\n"));
+  ].join("\n")));
 }
 
 async function replaceControlledDirectoryWithSymlink(root, name) {
@@ -111,6 +170,152 @@ test("Brief approval rejects the later Experience manifest but allows the final 
   assert.equal(briefDrift.status, 0, JSON.stringify(briefDrift));
   assert.equal(briefDrift.output.ok, false);
   assert.match(JSON.stringify(briefDrift.output.integrity_issues), /approval:brief/);
+});
+
+test("approval gates reject unresolved Definition coverage and incomplete journey evidence", async (t) => {
+  const root = await newRoot(t, "journey-gates-");
+  assert.equal(cli(["init", "--root", root, "--delivery-id", "DEL-journey-gates", "--title", "Journey gates", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+  await mkdir(path.join(root, "draft", "experience"), { recursive: true });
+  await writeFile(path.join(root, "draft", "delivery.md"), [
+    "# Delivery",
+    "",
+    "## Experience requirements",
+    "",
+    "- Required behavior coverage：待确认后补充。",
+    "- Required roles / pages / states：待确认后补充。",
+    "",
+  ].join("\n"));
+  const unresolvedDefinition = cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]);
+  assert.equal(unresolvedDefinition.status, 2, JSON.stringify(unresolvedDefinition));
+  assert.equal(unresolvedDefinition.output.error.code, "definition-experience-requirements");
+  assert.equal((await readdir(path.join(root, "events"))).length, 1);
+
+  await writeFile(path.join(root, "draft", "delivery.md"), [
+    "# Delivery",
+    "",
+    "## Experience requirements",
+    "",
+    "- Required behavior coverage：delivery.md#RULE-001",
+    "- Required roles / pages / states：用户查看异步结果的正常和失败状态。",
+    "- Required journey closure：用户可从既有结果入口再次查看当前状态；不规定固定页面名称。",
+    "",
+  ].join("\n"));
+  assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
+
+  await writeFile(path.join(root, "draft", "experience", "brief.md"), "# Brief\n\n- Re-entry / retrieval：用户可再次查看结果。\n");
+  const incompleteBrief = cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
+  assert.equal(incompleteBrief.status, 2, JSON.stringify(incompleteBrief));
+  assert.equal(incompleteBrief.output.error.code, "experience-journey");
+  await writeFile(path.join(root, "draft", "experience", "brief.md"), validBrief.replace("| `JNY-001` | `PAGE-01` | `PAGE-01` | `PAGE-01` | 当前状态保持可见 |", "| `JNY-001` |  |  |  |  |"));
+  const emptyJourney = cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
+  assert.equal(emptyJourney.status, 2, JSON.stringify(emptyJourney));
+  assert.equal(emptyJourney.output.error.code, "experience-journey");
+  await writeFile(path.join(root, "draft", "experience", "brief.md"), validBrief.replace("| `JNY-001` | `PAGE-01` |", "| `JNY-001` | PAGE-02 |"));
+  const unknownCoverage = cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
+  assert.equal(unknownCoverage.status, 2, JSON.stringify(unknownCoverage));
+  assert.equal(unknownCoverage.output.error.code, "experience-journey");
+  await writeFile(path.join(root, "draft", "experience", "brief.md"), validBrief);
+  assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
+
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), "# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n");
+  const incompleteManifest = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
+  assert.equal(incompleteManifest.status, 2, JSON.stringify(incompleteManifest));
+  assert.equal(incompleteManifest.output.error.code, "experience-journey-evidence");
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), withJourneyEvidence("# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n").replaceAll("JNY-001", "JNY-002"));
+  const mismatchedJourney = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
+  assert.equal(mismatchedJourney.status, 2, JSON.stringify(mismatchedJourney));
+  assert.equal(mismatchedJourney.output.error.code, "experience-journey-evidence");
+  const wrongCoveragePath = withJourneyEvidence("# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n").replace("| `JNY-001` | `PAGE-01` | existing reference `PAGE-01` | closed |", "| `JNY-001` | PAGE-02 | existing reference `PAGE-01` | closed |");
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), wrongCoveragePath);
+  const mismatchedCoverage = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
+  assert.equal(mismatchedCoverage.status, 2, JSON.stringify(mismatchedCoverage));
+  assert.equal(mismatchedCoverage.output.error.code, "experience-journey-evidence");
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), withJourneyEvidence("# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n"));
+  assert.equal(cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
+});
+
+test("pre-Candidate feedback opens a bounded Draft revision without Finding semantics", async (t) => {
+  const experienceRoot = await newRoot(t, "revise-experience-");
+  assert.equal(cli(["init", "--root", experienceRoot, "--delivery-id", "DEL-revise-experience", "--title", "Revise experience", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+  await seedDraft(experienceRoot);
+  assert.equal(cli(["approve-definition", "--root", experienceRoot, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准定义", "--actor-role", "product-owner"]).status, 0);
+  assert.equal(cli(["approve-brief", "--root", experienceRoot, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准 Brief", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(experienceRoot, "draft", "experience", "brief.md"), validBrief.replace("本测试不新增导航", "负责人要求调整既有入口说明"));
+  const experienceRevision = cli([
+    "start-draft-revision", "--root", experienceRoot, "--expect-revision", "3", "--return-phase", "experience",
+    "--artifact", "draft/experience/brief.md", "--evidence", "请按预览反馈调整入口说明", "--actor-role", "product-owner",
+  ]);
+  assert.equal(experienceRevision.status, 0, JSON.stringify(experienceRevision));
+  assert.equal(experienceRevision.output.state.phase, "experience");
+  assert.equal(experienceRevision.output.state.draft_revision, 2);
+  assert.ok(experienceRevision.output.state.approvals.definition);
+  assert.equal(experienceRevision.output.state.approvals.brief, null);
+  assert.equal(experienceRevision.output.state.approvals.preview, null);
+  assert.equal(experienceRevision.output.state.experience_route, null);
+  const revisionEventPath = path.join(experienceRoot, "events", "000004-draft-revision-started.json");
+  const originalRevisionEvent = await readFile(revisionEventPath, "utf8");
+  const tamperedRevisionEvent = JSON.parse(originalRevisionEvent);
+  tamperedRevisionEvent.payload.return_phase = "candidate";
+  await writeFile(revisionEventPath, `${JSON.stringify(tamperedRevisionEvent, null, 2)}\n`);
+  const replayedRevision = cli(["status", "--root", experienceRoot]);
+  assert.equal(replayedRevision.status, 5, JSON.stringify(replayedRevision));
+  assert.equal(replayedRevision.output.error.code, "stored-event-invalid");
+  await writeFile(revisionEventPath, originalRevisionEvent);
+  const unrelatedRevisionEvent = JSON.parse(originalRevisionEvent);
+  unrelatedRevisionEvent.artifacts[0].path = "draft/experience/evidence.md";
+  await writeFile(revisionEventPath, `${JSON.stringify(unrelatedRevisionEvent, null, 2)}\n`);
+  const unrelatedReplay = cli(["status", "--root", experienceRoot]);
+  assert.equal(unrelatedReplay.status, 5, JSON.stringify(unrelatedReplay));
+  assert.equal(unrelatedReplay.output.error.details.original_code, "revision-artifact");
+  await writeFile(revisionEventPath, originalRevisionEvent);
+  const unchangedRevisionEvent = JSON.parse(originalRevisionEvent);
+  const priorBriefEvent = JSON.parse(await readFile(path.join(experienceRoot, "events", "000003-brief-approved.json"), "utf8"));
+  unchangedRevisionEvent.artifacts[0].sha256 = priorBriefEvent.artifacts.find((artifact) => artifact.path === "draft/experience/brief.md").sha256;
+  await writeFile(revisionEventPath, `${JSON.stringify(unchangedRevisionEvent, null, 2)}\n`);
+  const unchangedReplay = cli(["status", "--root", experienceRoot]);
+  assert.equal(unchangedReplay.status, 5, JSON.stringify(unchangedReplay));
+  assert.equal(unchangedReplay.output.error.details.original_code, "revision-artifact");
+  await writeFile(revisionEventPath, originalRevisionEvent);
+  assert.equal(cli(["approve-brief", "--root", experienceRoot, "--expect-revision", "4", "--artifact", "draft/experience/brief.md", "--evidence", "批准修订 Brief", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
+
+  const definitionRoot = await newRoot(t, "revise-definition-");
+  assert.equal(cli(["init", "--root", definitionRoot, "--delivery-id", "DEL-revise-definition", "--title", "Revise definition", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+  await seedDraft(definitionRoot);
+  assert.equal(cli(["approve-definition", "--root", definitionRoot, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准定义", "--actor-role", "product-owner"]).status, 0);
+  assert.equal(cli(["approve-brief", "--root", definitionRoot, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准 Brief", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(definitionRoot, "draft", "delivery.md"), withDefinitionExperience("# Delivery\n\n- RULE-001: 用户通过修订后的入口查看当前状态。\n"));
+  const definitionRevision = cli([
+    "start-draft-revision", "--root", definitionRoot, "--expect-revision", "3", "--return-phase", "definition",
+    "--artifact", "draft/delivery.md", "--evidence", "请补充离开后的再次进入方式", "--actor-role", "product-owner",
+  ]);
+  assert.equal(definitionRevision.status, 0, JSON.stringify(definitionRevision));
+  assert.equal(definitionRevision.output.state.phase, "definition");
+  assert.equal(definitionRevision.output.state.draft_revision, 2);
+  assert.equal(definitionRevision.output.state.approvals.definition, null);
+  assert.equal(definitionRevision.output.state.approvals.brief, null);
+  assert.equal(cli(["approve-definition", "--root", definitionRoot, "--expect-revision", "4", "--artifact", "draft/delivery.md", "--evidence", "批准修订定义", "--actor-role", "product-owner"]).status, 0);
+
+  const unboundRoot = await newRoot(t, "revise-unbound-");
+  assert.equal(cli(["init", "--root", unboundRoot, "--delivery-id", "DEL-revise-unbound", "--title", "Revise unbound", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+  await seedDraft(unboundRoot);
+  assert.equal(cli(["approve-definition", "--root", unboundRoot, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准定义", "--actor-role", "product-owner"]).status, 0);
+  assert.equal(cli(["approve-brief", "--root", unboundRoot, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准 Brief", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(unboundRoot, "draft", "experience", "brief.md"), validBrief.replace("本测试不新增导航", "未绑定的 Brief 变化"));
+  const unbound = cli([
+    "start-draft-revision", "--root", unboundRoot, "--expect-revision", "3", "--return-phase", "experience",
+    "--artifact", "draft/delivery.md", "--evidence", "尝试未绑定修订", "--actor-role", "product-owner",
+  ]);
+  assert.equal(unbound.status, 5, JSON.stringify(unbound));
+  assert.equal(unbound.output.error.code, "integrity");
+  assert.equal((await readdir(path.join(unboundRoot, "events"))).length, 3);
+
+  const candidateRoot = await throughCandidate(t);
+  const afterCandidate = cli([
+    "start-draft-revision", "--root", candidateRoot, "--expect-revision", "6", "--return-phase", "definition",
+    "--artifact", "draft/delivery.md", "--evidence", "Candidate 后不能走该路径", "--actor-role", "product-owner",
+  ]);
+  assert.equal(afterCandidate.status, 2, JSON.stringify(afterCandidate));
+  assert.equal((await readdir(path.join(candidateRoot, "events"))).length, 6);
 });
 
 async function throughCandidate(t, { findings = [] } = {}) {
@@ -194,19 +399,19 @@ test("pre-freeze validates only explicit Candidate fields and rejects invalid re
     assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
     return root;
   };
-  const validManifest = "# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n- Candidate artifact：`experience/evidence.md`\n";
+  const validManifest = withJourneyEvidence("# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n- Candidate artifact：`experience/evidence.md`\n");
   const unboundRoot = await prepare("reference-unbound", validManifest);
   const missingManifestBinding = cli(["approve-preview", "--root", unboundRoot, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
   assert.equal(missingManifestBinding.status, 2);
   assert.equal(missingManifestBinding.output.error.code, "candidate-reference");
 
-  const forbiddenRoot = await prepare("reference-forbidden", "# Manifest\n\n- Candidate artifact：`draft/experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n- Candidate artifact：`experience/evidence.md`\n");
+  const forbiddenRoot = await prepare("reference-forbidden", withJourneyEvidence("# Manifest\n\n- Candidate artifact：`draft/experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n- Candidate artifact：`experience/evidence.md`\n"));
   assert.equal(cli(["approve-preview", "--root", forbiddenRoot, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
   const forbidden = cli(["freeze-candidate", "--root", forbiddenRoot, "--expect-revision", "4", "--candidate-id", "CAND-reference-forbidden-r1"]);
   assert.equal(forbidden.status, 2);
   assert.equal(forbidden.output.error.code, "candidate-reference");
 
-  const missingRoot = await prepare("reference-missing", "# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n- Candidate artifact：`experience/evidence.md`\n- Candidate artifact：`experience/missing.png`\n");
+  const missingRoot = await prepare("reference-missing", withJourneyEvidence("# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n- Candidate artifact：`experience/evidence.md`\n- Candidate artifact：`experience/missing.png`\n"));
   assert.equal(cli(["approve-preview", "--root", missingRoot, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
   const missing = cli(["freeze-candidate", "--root", missingRoot, "--expect-revision", "4", "--candidate-id", "CAND-reference-missing-r1"]);
   assert.equal(missing.status, 2);
@@ -408,7 +613,7 @@ test("Review identity claims and recipient evidence fail closed", async (t) => {
 
 test("Finding correction accepts expected Draft drift and invalidates prior bindings", async (t) => {
   const root = await throughCandidate(t, { findings: ["FND-001"] });
-  await writeFile(path.join(root, "draft", "delivery.md"), "# Delivery\n\n- RULE-001 corrected.\n");
+  await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery\n\n- RULE-001 corrected.\n"));
   const corrected = cli(["record-finding-resolution", "--root", root, "--expect-revision", "6", "--finding-id", "FND-001", "--disposition", "corrected", "--return-phase", "definition", "--artifact", "draft/delivery.md", "--evidence", "负责人确认按 Finding 修订", "--actor-role", "product-owner"]);
   assert.equal(corrected.status, 0, JSON.stringify(corrected));
   assert.equal(corrected.output.state.draft_revision, 2);
@@ -611,7 +816,7 @@ test("approved CHG round archives the prior delivery evidence, resets receipt, a
   assert.equal(started.output.state.release_history[0].release_id, "REL-integration-v1");
   assert.equal(started.output.state.release_history[0].receipt.status, "acknowledged");
   assert.equal(started.output.state.active_change.change_id, "CHG-integration-001");
-  await writeFile(path.join(root, "draft", "delivery.md"), "# Delivery v2\n\n- RULE-001: 用户可以查看变更后的状态。\n");
+  await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery v2\n\n- RULE-001: 用户可以查看变更后的状态。\n"));
   assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "11", "--artifact", "draft/delivery.md", "--evidence", "批准变更后的定义", "--actor-role", "product-owner"]).status, 0);
   assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "12", "--artifact", "draft/experience/brief.md", "--evidence", "批准变更 Brief", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
   assert.equal(cli(["approve-preview", "--root", root, "--expect-revision", "13", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准变更体验证据", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);

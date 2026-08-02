@@ -32,7 +32,7 @@ If the host cannot provide a model, session, configuration, or runtime identity,
 
 1. Map behavior claims to authoritative `path#ID` locators and fact status.
 2. Normalize critical behavior as actor, start, event, guard, success, failure/recovery, and side effects.
-3. Probe terminology, ownership, permission, money/data effects, exception/recovery, cross-contract references, Experience coverage, save/read-back, preview, and asset provenance.
+3. Probe terminology, ownership, permission, money/data effects, exception/recovery, cross-contract references, Experience coverage, complete journeys, later re-entry/retrieval, dangling affordances, save/read-back, preview, and asset provenance.
 4. If two materially different observable implementations both satisfy a statement, raise a Finding rather than choose.
 5. Give each Finding one `FND-*`, severity, evidence, counterexample, impact, Owner, return target, affected locators, and closure evidence.
 

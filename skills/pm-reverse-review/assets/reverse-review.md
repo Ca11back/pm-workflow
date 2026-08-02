@@ -12,6 +12,8 @@
 - Experience adequacy：`pen-implementation-target | exact-existing-reference | explicit-skipped-risk | not-needed-non-visible | gap` / {user-visible-scope test and evidence}
 - Experience lifecycle authority：`experience/manifest.md` plus generated `START-HERE.md` / {route, status, source and preview agreement; Definition files are not mutable lifecycle snapshots}
 - Multi-state relationship check：{each approved Coverage ID and its relationship statement; agreement across Brief/Pen read-back/manifest; any contradiction with approved behavior}
+- Journey closure / re-entry check：{critical journeys independently derived from Markdown; Journey ID agreement; applicable later retrieval of persistent/asynchronous objects}
+- Dangling-affordance check：{every visible navigation/action/return target and destination, or none}
 - Pen structure verification：`direct-read-only | isolated-copy | preview-and-recorded-read-back-only | not-applicable` / {evidence or explicit limitation}
 - Isolated-copy boundary / cleanup：`not-used | authorized-copy-cleaned | authorized-copy-retained` / {caller-authorized scope evidence and exact cleanup result}
 - Review mode / date：`self-check | isolated-same-model | independent-model | human` / {date}

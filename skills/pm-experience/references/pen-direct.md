@@ -25,9 +25,11 @@ Only after `ready`, copy `experience-manifest.md` to `experience/manifest.md` an
 In the same process:
 
 1. Read app state/schema and only relevant guidelines.
-2. Create the approved pages/states in reviewable batches.
-3. Read back content/bounds and confirm Coverage IDs; fix missing, clipped, overlapping, or contradictory states.
+2. Create the approved pages/states in reviewable batches; do not add decorative navigation or action affordances whose destinations are not covered.
+3. Read back content/bounds, Coverage IDs, Journey IDs, and every visible navigation/action/return target. Fix missing, clipped, overlapping, contradictory, unreachable, or dangling states before claiming coverage. Static/non-clickable fidelity removes click behavior, not the need to show every destination required to understand an approved journey.
 4. Generate the preview, save the `.pen`, verify both files, and exit cleanly.
+
+Remove or correct an accidental affordance when that stays inside the approved Brief. If closing the journey requires a new destination or product behavior absent from the Brief, stop before preview approval and follow the Skill's explicit pre-Candidate Draft-revision path; do not invent the missing scope in Pen or report the old coverage as complete.
 
 Do not treat a command echo, exit code, or file existence by itself as proof of success. Confirm command responses, state/read-back, save, preview, and clean termination.
 
@@ -45,4 +47,4 @@ Only a later context-bound Owner reply after the preview was presented can appro
 
 Only an explicit `terminated` preflight/launch/session failure can become `tool-unavailable`. Then create the manifest, record the exact non-secret terminal result and one product impact, and stop. Do not automatically retry, delete a global Pen socket, switch tools, or claim completion. A later Owner-authorized attempt uses fresh targets.
 
-Record the compact launch state, one-process result, structural/visual review, preview presentation, save/exit result, coverage, output identities, and asset provenance in `experience/manifest.md`.
+Record the compact launch state, one-process result, structural/visual review, preview presentation, save/exit result, Coverage/Journey read-back, dangling-affordance result, output identities, and asset provenance in `experience/manifest.md`.

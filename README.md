@@ -69,6 +69,7 @@ npx skills add <owner>/<repo> --skill '*'
 - Definition、Brief、preview/route approval 分别绑定当时文件 hash 和产品负责人原话。
 - Brainstorm Patch 绑定 Draft revision；过期 Patch 被拒绝。
 - `CAND-*`、`REV-*`、`REL-*`、`CHG-*` 身份独立且不可复用；仅大小写不同仍视为同一历史身份，Review report 路径也不能复用；`start-change` 绑定已批准 CHG 提案和当前 Release hash 后才开启新 Definition round。
+- Brief 批准后、Candidate 冻结前发现范围或行为缺口时，`start-draft-revision` 只接纳本次 artifact 明确绑定的批准 hash 变化，按 `experience | definition` 返回并使对应批准失效；Candidate 后仍只走 Finding 修订路径。
 - Review mode 只有 `self-check`、`isolated-same-model`、`independent-model`、`human`；同会话只能称 self-check。
 - Release 文件生成最多到 `prepared`；真实发送另记 `attempted` 或 `sent-confirmed`。
 - `acknowledged`、`accepted`、`rejected` 必须来自本轮 `sent-confirmed` 所记录的同一外部收件人证据，PM Agent 不能自收自确认。
