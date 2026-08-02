@@ -15,7 +15,7 @@
 - Delivery / scope：`DEL-{slug}` / `Change | Capability`
 - Goal and observable result：{business goal and user-visible result}
 - Included / excluded：{this unit} / {adjacent or future behavior}
-- PM / business Owner：{roles}
+- Product confirmer：{current PM/user by default; name another person or function only when explicitly required for a specific decision}
 
 ## Required product behavior
 

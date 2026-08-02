@@ -141,6 +141,12 @@ test("017 interaction improvements remain integrated across the Skill handoffs",
   const intake = await readFile(path.join(candidateRoot, "skills", "pm-definition", "references", "intake-and-routing.md"), "utf8");
   assert.match(delivery, /first concrete PM-facing business question/);
   assert.match(definition, /Do not prescribe a mandatory sentence/);
+  assert.match(definition, /Treat the current PM\/user as the product confirmer by default/);
+  assert.match(definition, /Do not create a separate authority-confirmation question by default/);
+  assert.match(intake, /does not .*create an automatic organizational approval gate/);
+  assert.match(intake, /specific nodes that explicitly require confirmation beyond the current PM\/user/);
+  assert.doesNotMatch(definition, /If authority is unresolved, ask who holds it and stop/);
+  assert.doesNotMatch(intake, /Label an unverified self-declaration honestly/);
   assert.match(intake, /estimated_sequential_rounds/);
   assert.match(intake, /answer in their own words/);
 });

@@ -16,7 +16,7 @@
 - Target user / core problem：{user/problem}
 - Observable promise / success signal：{promise/signal}
 - Product responsibility / non-goals：{boundary} / {non-goals}
-- Decision authority：{what PM can decide, what needs business Owner, and escalation when nobody has authority}
+- Decision confirmation：{current PM/user by default; specific decisions explicitly assigned to another person/function, or none}
 
 ## Roles and core objects
 

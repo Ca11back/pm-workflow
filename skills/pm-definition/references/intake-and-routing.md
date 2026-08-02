@@ -30,7 +30,7 @@ For `Raw + Product`, first establish the Product boundary and name one current R
 
 ## Risk and authority
 
-Flag money/price, permissions, personal or regulated data, irreversible state, compliance, external writes, and cross-capability effects. Risk increases the depth of logic, exception, recovery, and Review; it does not ask for a technical design or create an automatic gate. Record who may decide, distinguish the requester and working PM from the business Owner, and resolve approval authority before the exit gate. Label an unverified self-declaration honestly; never treat a model-suggested approval phrase as authority evidence. Escalate pricing, permission boundaries, external commitments, compliance, and major scope changes to the business Owner; the Agent never approves.
+Flag money/price, permissions, personal or regulated data, irreversible state, compliance, external writes, and cross-capability effects. Risk increases the depth of logic, exception, recovery, and Review; it does not ask for a technical design or create an automatic organizational approval gate. Treat the current PM/user as the product confirmer unless they explicitly disclaim a decision or current evidence assigns a specific node to another person or function. In that case, record and ask only that concrete missing decision. Do not turn requester/PM/Owner labels, identity verification, or self-declaration into a default PM-facing question. The Agent never approves or fabricates confirmation.
 
 ## Persist the Decision inventory
 
@@ -43,7 +43,7 @@ Keep this dynamic snapshot in the entry:
 - `known_required_open`: required unresolved nodes for the current Release/Active Slice;
 - `blocking_current_slice`: the subset currently preventing downstream definition, Experience, Review, or handoff;
 - `deferred`: explicitly postponed nodes outside the current boundary;
-- `owner_confirmation`: nodes that require the requester/business Owner;
+- `owner_confirmation`: specific nodes that explicitly require confirmation beyond the current PM/user;
 - `estimated_sequential_rounds`: the longest currently foreseeable dependency chain still requiring separate PM replies;
 - `presentation_mode`: `unset`, `guided`, `small-batch`, or `checklist`;
 - `current_decision_node`; write the resulting next action/Owner only in the top state card.
@@ -75,7 +75,7 @@ Apply these probes only where they can change current behavior, and record irrel
 
 Below the threshold, proceed directly with one upstream question. Do not add a mode-selection step for a simple request. When `presentation_mode=unset` and either `known_required_open >= 4` or `estimated_sequential_rounds > 3`, show the counts before the next business question and stop for the PM to choose a presentation mode:
 
-> 当前已识别 N 个本次范围必须确认的问题；其中 X 个会阻塞当前范围，Y 个可以稍后处理，Z 个需要业务 Owner 确认。回答后数量可能变化。
+> 当前已识别 N 个本次范围必须确认的问题；其中 X 个会阻塞当前范围，Y 个可以稍后处理，Z 个已明确需要其他人员确认。回答后数量可能变化。
 
 Always offer these plain-language modes:
 
@@ -90,4 +90,4 @@ Keep internal labels `guided`, `small-batch`, and `checklist` out of ordinary PM
 
 Choose the earliest unresolved required node whose answer changes downstream behavior. Before asking, perform one lightweight direction check: does the requested solution hide a materially different user/business outcome? Use Brainstorm only if 2–3 real product directions exist; otherwise continue Definition.
 
-Each PM-facing recommendation card states the business situation, one question, why it matters now, a recommended answer, alternatives and trade-offs, a concrete example, user/business impact, and who decides. When two or three credible directions exist, show all of them as concise labeled options, mark exactly one as recommended, and format every option with its main benefit and trade-off; do not omit credible alternatives merely to keep the reply open. Present the recommendation in ordinary language and treat the labeled options as response shortcuts rather than an exhaustive answer contract. Unless the business domain provides a genuinely closed, mutually exclusive, complete choice set, never require a letter- or number-only reply. After every non-exhaustive option list, end with one explicit sentence saying that the PM may choose a label or answer in their own words with another direction, combination, correction, or condition; never leave this permission implicit. Persist affected locators, source/constraints, expected output, and required/optional internally in the Delivery and route payload; do not display them unless the PM explicitly asks for traceability. If the PM lacks authority, preserve the choice and give a concise option card to take to the Owner instead of inventing an answer.
+Each PM-facing recommendation card states the business situation, one question, why it matters now, a recommended answer, alternatives and trade-offs, a concrete example, user/business impact, and who decides when another confirmer is explicitly required. When two or three credible directions exist, show all of them as concise labeled options, mark exactly one as recommended, and format every option with its main benefit and trade-off; do not omit credible alternatives merely to keep the reply open. Present the recommendation in ordinary language and treat the labeled options as response shortcuts rather than an exhaustive answer contract. Unless the business domain provides a genuinely closed, mutually exclusive, complete choice set, never require a letter- or number-only reply. After every non-exhaustive option list, end with one explicit sentence saying that the PM may choose a label or answer in their own words with another direction, combination, correction, or condition; never leave this permission implicit. Persist affected locators, source/constraints, expected output, and required/optional internally in the Delivery and route payload; do not display them unless the PM explicitly asks for traceability. If the current PM explicitly lacks authority for this node, preserve the choice and give a concise option card for the named confirmer instead of inventing an answer.

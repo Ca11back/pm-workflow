@@ -23,7 +23,7 @@ Raw `source/` material remains outside Candidate snapshots. When a claim will be
 
 1. Keep raw input evidence-only until an authorized source confirms a behavior claim.
 2. Choose the smallest current bundle from [small-delivery.md](assets/small-delivery.md), or [product-foundation.md](assets/product-foundation.md) plus [capability-slice.md](assets/capability-slice.md).
-3. Persist confirmed facts, assumptions, conflicts, open questions, rejected choices, sources, affected locators, and Owner authority in `draft/`.
+3. Persist confirmed facts, assumptions, conflicts, open questions, rejected choices, sources, affected locators, and any specific decision that explicitly requires another confirmer in `draft/`.
 4. Create one semantic Decision node per business question whose answer changes what a user can see, do, receive, or recover from. Give each node one recommendation and its strongest trade-off. A PM-facing turn may present two or three independent nodes only when the selected presentation mode permits it; never merge their answers or dependencies.
 5. Keep implementation architecture, APIs, storage, modules, libraries, deployment, estimates, credentials, Git, CLI, YAML, and MCP outside PM decisions.
 6. Keep every approval-bound Definition file temporally stable. Record the product behavior and the roles/pages/states that later Experience evidence must cover, but do not record the current Experience route, lifecycle status, generated source, preview, or Pen node bindings. Those post-Definition facts belong only to `experience/manifest.md` and generated `START-HERE.md`. A later visual discovery that changes behavior returns to Definition; never mutate an approved Definition file merely to refresh lifecycle prose.
@@ -36,15 +36,17 @@ Before merging, call `record-brainstorm-patch` with `--base-revision` equal to g
 
 ## Exit through explicit approval
 
-Resolve and persist approval authority separately from approval. Keep the requester, working PM, and business Owner distinct. If authority is unresolved, ask who holds it and stop; a user cannot both acquire `product-owner` authority and approve by repeating a suggested sentence. When the host cannot verify identity, record an authority statement honestly as self-declared rather than verified.
+Treat the current PM/user as the product confirmer by default when they initiated or continued this Delivery and have been making its product decisions. In runtime evidence, `product-owner` means this human product-confirmation role; it does not assert a corporate title or verified organizational approval power. Do not create a separate authority-confirmation question by default, ask the user to self-declare ownership, or expose identity-audit wording in ordinary PM interaction.
 
-When Definition is materially complete and authority is established, show the included scope and exclusions, observable behavior, unresolved assumptions/risks, and representative acceptance scenarios. Do not request approval from a scope summary alone, and write “none” only after checking a category. Ask the authorized Owner in natural language to approve, request changes, reject, or defer, then stop. Do not prescribe a mandatory sentence or require verbatim copying. Any unambiguous, context-bound approval from the established authority is sufficient; a generic “continue”, “好的”, or other workflow permission is not approval.
+Only when the current PM/user explicitly says they cannot decide, or current evidence assigns a specific Decision node to another person or function, keep that concrete node open and ask for the missing confirmation. Risk, price, permissions, or compliance alone do not invent a separate approver. The Agent never supplies the human approval itself.
 
-Only on a later explicit approval from that established authority, run `approve-definition` with:
+When Definition is materially complete, show the included scope and exclusions, observable behavior, unresolved assumptions/risks, and representative acceptance scenarios. Do not request confirmation from a scope summary alone, and write “none” only after checking a category. Ask the current product confirmer in natural language to confirm this definition, request changes, reject, or defer, then stop. If a specific external confirmation is still open, present that item instead of asking a blanket identity question. Do not prescribe a mandatory sentence or require verbatim copying. Any unambiguous, context-bound confirmation from the applicable human is sufficient; a generic “continue”, “好的”, or other workflow permission is not approval.
+
+Only on a later explicit confirmation from that human, run `approve-definition` with:
 
 - the current `--expect-revision`;
-- `--actor-role product-owner` only for that authority, plus an honest actor label;
-- the Owner's actual approval words in `--evidence`, without rewriting them into a canned phrase;
+- `--actor-role product-owner` for the human product confirmer, plus an honest actor label without inventing an organizational title;
+- their actual confirmation words in `--evidence`, without rewriting them into a canned phrase;
 - every behavior-bearing current Draft file as repeated `--artifact` values.
 
 The runtime binds approval to hashes and moves to Experience. If any bound file later changes, downstream eligibility fails until a legitimate return/reapproval transition. On success, follow the internal handoff rule instead of ending with a phase-only routing message.
