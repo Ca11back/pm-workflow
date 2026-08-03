@@ -22,6 +22,8 @@ The prototype question, functional representation detail, interaction coverage, 
 
 Create task-shaped artifact structures in reviewable batches. A real input, choice, collection, review, or result obligation needs visible functional structure; an icon or sentence claiming the function is not a substitute. Read back descendants, content, semantic controls/signifiers, feedback, connections, recovery, re-entry, hierarchy and bounds—not only root names or bounds. Each material State must identify the state-specific descendant or variant that proves its visible delta, action availability, feedback and recovery. Several States may share one Screen root, but the shared root alone is not evidence that those States exist.
 
+The same Screen/artboard may contain several material States as separate state-specific descendants or variants; separate pages, frames, or named roots per State are never mandatory. After the complete save/read-back pass, use `preflight-experience` before presentation with the Pen handle still live. Its canonical validator is fail-fast: repair the current target identities and rerun only after their evidence changes. Continue only when those targeted identities disappear and the next diagnostic fingerprint has not been seen; newly revealed identities are allowed. Stop when a targeted identity persists or a diagnostic fingerprint repeats.
+
 ## Functional audit
 
 Audit inventory completeness, transition closure, feedback/recovery, and every Step's goal/action/progress/result. Then probe `template-collapse`: a shared shell or repeated layout is allowed, but different primary jobs with identical functional regions need a task reason and still must contain their own required content/control evidence.

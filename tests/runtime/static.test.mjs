@@ -108,7 +108,7 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(reference, /Never project a structured launch result down to stdout alone/i);
   assert.match(reference, /Empty output from a yield is pending, not failure/);
   assert.match(reference, /process alive; output empty or prompt not seen yet.*`running`/);
-  assert.match(reference, /explicit error, or process ended.*`terminated`/);
+  assert.match(reference, /Pen live-help\/prelaunch\/launch returned an explicit error, or the Pen process ended.*`terminated`/);
   assert.match(reference, /While `running`, do not inspect final output files as startup evidence/);
   const briefTemplateStep = skill.indexOf("[experience-brief.md](assets/experience-brief.md)");
   const manifestTemplateStep = skill.indexOf("[experience-manifest.md](assets/experience-manifest.md)");
@@ -153,6 +153,10 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(functionalWireflow, /state-specific descendant or variant/);
   assert.match(functionalWireflow, /One complete Screen may pass/);
   assert.match(functionalWireflow, /Justified identical state structures may pass/);
+  assert.match(functionalWireflow, /separate pages, frames, or named roots per State are never mandatory/);
+  assert.match(functionalWireflow, /canonical validator is fail-fast/);
+  assert.match(functionalWireflow, /targeted identities disappear and the next diagnostic fingerprint has not been seen/);
+  assert.match(functionalWireflow, /Stop when a targeted identity persists or a diagnostic fingerprint repeats/);
   assert.match(experienceManifest, /\| Coverage ID \| Markdown locator .*\| Runtime relationship \|/);
   assert.match(experienceManifest, /Candidate artifact.*`experience\/brief\.md`/);
   assert.match(experienceManifest, /Candidate artifact.*`experience\/manifest\.md`/);
@@ -201,6 +205,19 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(experienceManifest, /structural read-back is not visual inspection/i);
   assert.match(skill, /If the Agent cannot inspect images/);
   assert.match(skill, /If neither the Agent nor the Owner can access the preview, keep Experience blocked/);
+  assert.match(skill, /read-only `preflight-experience`/);
+  assert.match(skill, /retain the same live Pen handle/);
+  assert.match(skill, /Save \/ clean exit: saved-open/);
+  assert.match(skill, /canonical validator is fail-fast/);
+  assert.match(skill, /previously targeted identities disappear from the next diagnostic and its fingerprint has not been seen/);
+  assert.match(skill, /Stop when any targeted identity persists, a diagnostic fingerprint repeats/);
+  assert.match(reference, /diagnostics_complete: false/);
+  assert.match(reference, /newly revealed identities, including a same-size substitution, are allowed/);
+  assert.match(reference, /Stop if any targeted identity persists, a diagnostic fingerprint repeats/);
+  assert.match(reference, /Experience preflight rejection is a contract diagnostic, not Pen termination or tool unavailability/);
+  assert.match(reference, /change `Save \/ clean exit` to `yes`/);
+  assert.match(reference, /Preflight is read-only and neither records Owner review nor replaces `approve-preview`/);
+  assert.doesNotMatch(reference, /(?:rerun|retry).{0,40}(?:twice|three times|\d+ times)/i);
   assert.match(skill, /start-draft-revision/);
   assert.match(skill, /--return-phase experience/);
   assert.match(skill, /`definition` for behavior/);
@@ -246,6 +263,8 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   const runtimeSource = await readFile(path.join(candidateRoot, "runtime", "pm-workflow.mjs"), "utf8");
   assert.doesNotMatch(runtimeSource, /最小原型/, "runtime next action must not collapse functional fidelity into a minimal visual target");
   assert.match(runtimeSource, /functional wireflow Brief.*功能原型、回读并展示预览/);
+  assert.match(runtimeSource, /"preflight-experience": \["root", "artifact", "experience-route", "json"\]/);
+  assert.match(runtimeSource, /unresolved_identities/);
   for (const heuristic of [/node_count/i, /subtree_similarity/i, /visual_novelty/i, /product_keywords/i, /aesthetic_score/i, /\.pen JSON parser/i]) {
     assert.doesNotMatch(runtimeSource, heuristic, `runtime heuristic boundary: ${heuristic}`);
   }

@@ -111,6 +111,7 @@ const COMMAND_FLAGS = Object.freeze({
   status: ["root", "json"],
   next: ["root", "json"],
   validate: ["root", "json"],
+  "preflight-experience": ["root", "artifact", "experience-route", "json"],
   render: ["root", "expect-revision", "json"],
   reconcile: ["root", "check", "expect-revision", "json"],
   doctor: ["root", "json"],
@@ -1369,10 +1370,14 @@ function cleanMarkdownValue(value) {
   return (code?.[1] ?? trimmed).trim();
 }
 
-function markdownField(text, label, code) {
+function isPendingValue(value) {
+  return cleanMarkdownValue(value).toLowerCase() === "pending";
+}
+
+function markdownField(text, label, code, { allowPending = false } = {}) {
   const match = text.match(new RegExp(`^- ${escapeRegExp(label)}[：:]\\s*(.+)$`, "mu"));
   const value = cleanMarkdownValue(match?.[1] ?? "");
-  if (!match || isUnresolvedApprovalValue(value)) fail(`${label} 缺失或仍是占位内容。`, { code });
+  if (!match || (isUnresolvedApprovalValue(value) && !(allowPending && isPendingValue(value)))) fail(`${label} 缺失或仍是占位内容。`, { code });
   return value;
 }
 
@@ -1590,7 +1595,19 @@ function assertReadyBundlePath(value, allowedArtifacts, label, code, { suffix } 
   return assertBoundBundlePaths(`\`${match[1] ?? match[2]}\``, allowedArtifacts, label, code, { suffix });
 }
 
-function assertResolvedManifestFields(text, code) {
+const PREFLIGHT_PENDING_FIELDS = new Set([
+  "Preview presentation to Owner",
+  "Preview shown",
+  "Preview date",
+  "PM/Owner functional review",
+  "PM/Owner feedback",
+  "PM/Owner preview approval words",
+  "PM/Owner preview approval date",
+  "Experience status",
+  "PM/Owner continuation",
+]);
+
+function assertResolvedManifestFields(text, code, { preflight = false } = {}) {
   const values = new Map();
   for (const label of [
     "Brief", "Pen source", "Preview exports", "Read-back artifact", "Reference / route evidence",
@@ -1605,21 +1622,33 @@ function assertResolvedManifestFields(text, code) {
     "PM/Owner functional review", "PM/Owner feedback", "PM/Owner preview approval words",
     "PM/Owner preview approval date", "Behavior or functional drift", "Missing coverage", "Experience status",
     "Experience reason", "Product risk", "PM/Owner continuation",
-  ]) values.set(label, markdownField(text, label, code));
+  ]) values.set(label, markdownField(text, label, code, { allowPending: preflight && PREFLIGHT_PENDING_FIELDS.has(label) }));
   return values;
 }
 
-async function validateManifestJourneyEvidence(root, artifacts, route, briefArtifacts, approvalWords) {
+function assertPendingOrExact(value, expected, label, code) {
+  if (!isPendingValue(value)) assertExactValue(value, expected, label, code);
+}
+
+function assertPendingOrConcrete(value, label, code, options = undefined) {
+  if (!isPendingValue(value)) assertConcreteValue(value, label, code, options);
+}
+
+function assertPendingOrAllowed(value, allowed, label, code) {
+  if (!isPendingValue(value) && !allowed.includes(cleanMarkdownValue(value))) fail(`${label} 必须是 pending 或 ${allowed.join(" / ")}。`, { code });
+}
+
+async function validateManifestJourneyEvidence(root, artifacts, route, briefArtifacts, approvalWords, { preflight = false } = {}) {
   if (!artifacts.some((artifact) => artifact.path === "draft/experience/manifest.md")) return;
   const code = "experience-functional-evidence";
   const text = await readArtifactText(root, "draft/experience/manifest.md");
   const brief = await readArtifactText(root, "draft/experience/brief.md");
   const contract = parseBriefContract(brief, route, code);
-  const fields = assertResolvedManifestFields(text, code);
+  const fields = assertResolvedManifestFields(text, code, { preflight });
   assertExactValue(fields.get("Brief"), "experience/brief.md", "Manifest Brief", code);
   assertExactValue(fields.get("Experience target"), route, "Experience target", code);
   assertExactValue(fields.get("Visual role"), "implementation-target", "Visual role", code);
-  if (fields.get("PM/Owner preview approval words") !== approvalWords) fail("Manifest Owner approval words 必须与 approve-preview evidence 完全一致。", { code });
+  if (!preflight && fields.get("PM/Owner preview approval words") !== approvalWords) fail("Manifest Owner approval words 必须与 approve-preview evidence 完全一致。", { code });
 
   const allApprovedArtifacts = new Set([...(briefArtifacts ?? []), ...artifacts].map((artifact) => artifact.path));
   const previewArtifactSet = new Set(artifacts.map((artifact) => artifact.path));
@@ -1724,8 +1753,10 @@ async function validateManifestJourneyEvidence(root, artifacts, route, briefArti
     }
     assertReadyBundlePath(fields.get("Preview file result"), previewArtifactSet, "Preview file result", code, { suffix: ".png" });
     if (!["agent-visual", "human-required"].includes(fields.get("Agent visual capability"))) fail("Pen route 必须记录 Agent visual capability。", { code });
-    if (!["attached", "rendered", "local-path"].includes(fields.get("Preview presentation to Owner"))) fail("Pen preview 必须已向 Owner 展示。", { code });
-    assertExactValue(fields.get("Save / clean exit"), "yes", "Save / clean exit", code);
+    if (preflight) assertPendingOrAllowed(fields.get("Preview presentation to Owner"), ["attached", "rendered", "local-path"], "Preview presentation to Owner", code);
+    else if (!["attached", "rendered", "local-path"].includes(fields.get("Preview presentation to Owner"))) fail("Pen preview 必须已向 Owner 展示。", { code });
+    if (preflight) assertExactValue(fields.get("Save / clean exit"), "saved-open", "Save / clean exit", code);
+    else assertExactValue(fields.get("Save / clean exit"), "yes", "Save / clean exit", code);
   } else if (route === "existing-reference") {
     assertExactValue(fields.get("Direct route"), "existing-reference", "Direct route", code);
     assertExactValue(fields.get("Functional realization applicability"), "required", "Functional realization applicability", code);
@@ -1748,12 +1779,20 @@ async function validateManifestJourneyEvidence(root, artifacts, route, briefArti
       assertExactValue(row.cells[3], "closed", `${row.id} closure result`, code);
     }
     if (!["agent-visual", "human-required"].includes(fields.get("Agent visual capability"))) fail("existing-reference 必须记录 visual capability。", { code });
-    if (!["attached", "rendered", "local-path"].includes(fields.get("Preview presentation to Owner"))) fail("existing-reference 必须已向 Owner 展示。", { code });
+    if (preflight) assertPendingOrAllowed(fields.get("Preview presentation to Owner"), ["attached", "rendered", "local-path"], "Preview presentation to Owner", code);
+    else if (!["attached", "rendered", "local-path"].includes(fields.get("Preview presentation to Owner"))) fail("existing-reference 必须已向 Owner 展示。", { code });
   } else if (route === "not-needed") {
     assertExactValue(fields.get("Direct route"), "not-needed", "Direct route", code);
     assertReasonedNotApplicable(fields.get("Functional realization applicability"), "Functional realization applicability", code);
-    for (const label of ["Pen source", "Preview exports", "Read-back artifact", "Pen CLI version", "Live interactive help read", "Process state", "Resumable handle retained", "Initial prompt", "Terminal result", "Save / clean exit", "Preview file result", "Agent visual capability", "Preview presentation to Owner", "Preview date"]) {
+    for (const label of ["Pen source", "Preview exports", "Read-back artifact", "Pen CLI version", "Live interactive help read", "Process state", "Resumable handle retained", "Initial prompt", "Terminal result", "Save / clean exit", "Preview file result", "Agent visual capability"]) {
       assertReasonedNotApplicable(fields.get(label), label, code);
+    }
+    if (preflight) {
+      if (!isPendingValue(fields.get("Preview presentation to Owner"))) assertReasonedNotApplicable(fields.get("Preview presentation to Owner"), "Preview presentation to Owner", code);
+      if (!isPendingValue(fields.get("Preview date"))) assertReasonedNotApplicable(fields.get("Preview date"), "Preview date", code);
+    } else {
+      assertReasonedNotApplicable(fields.get("Preview presentation to Owner"), "Preview presentation to Owner", code);
+      assertReasonedNotApplicable(fields.get("Preview date"), "Preview date", code);
     }
     for (const label of ["App state / schema read", "Direct mutation summary", "Structural/layout read-back", "Coverage read-back", "Journey closure read-back", "Re-entry / retrieval coverage"]) assertReasonedNotApplicable(fields.get(label), label, code);
     assertConcreteValue(fields.get("Guidelines and document discovery"), "Guidelines and document discovery", code);
@@ -1782,7 +1821,8 @@ async function validateManifestJourneyEvidence(root, artifacts, route, briefArti
     assertConcreteValue(fields.get("Terminal result"), "Terminal result", code);
     if (!/^unavailable:\s*\S.+$/iu.test(fields.get("Preview file result"))) fail("Unavailable Pen route 必须记录 preview unavailable reason。", { code });
     assertReasonedNotApplicable(fields.get("Agent visual capability"), "Agent visual capability", code);
-    assertExactValue(fields.get("Preview presentation to Owner"), "unavailable", "Preview presentation to Owner", code);
+    if (preflight) assertPendingOrExact(fields.get("Preview presentation to Owner"), "unavailable", "Preview presentation to Owner", code);
+    else assertExactValue(fields.get("Preview presentation to Owner"), "unavailable", "Preview presentation to Owner", code);
     assertExactValue(fields.get("Save / clean exit"), "no", "Save / clean exit", code);
     for (const row of coverageRows) assertExactValue(row.cells[5], "unverified", `${row.id} sync result`, code);
     for (const row of coverageRows) assertUnavailableValue(row.cells[2], `${row.id} unavailable artifact locator`, code);
@@ -1793,33 +1833,98 @@ async function validateManifestJourneyEvidence(root, artifacts, route, briefArti
   }
 
   if (success) {
-    assertExactValue(fields.get("Preview shown"), "yes", "Preview shown", code);
-    assertConcreteValue(fields.get("Preview date"), "Preview date", code);
-    assertConcreteValue(fields.get("PM/Owner functional review"), "PM/Owner functional review", code);
-    assertConcreteValue(fields.get("PM/Owner preview approval date"), "PM/Owner preview approval date", code);
+    if (preflight) {
+      assertPendingOrExact(fields.get("Preview shown"), "yes", "Preview shown", code);
+      assertPendingOrConcrete(fields.get("Preview date"), "Preview date", code);
+      assertPendingOrConcrete(fields.get("PM/Owner functional review"), "PM/Owner functional review", code);
+      assertPendingOrConcrete(fields.get("PM/Owner preview approval words"), "PM/Owner preview approval words", code);
+      assertPendingOrConcrete(fields.get("PM/Owner preview approval date"), "PM/Owner preview approval date", code);
+      assertPendingOrAllowed(fields.get("Experience status"), ["completed"], "Experience status", code);
+    } else {
+      assertExactValue(fields.get("Preview shown"), "yes", "Preview shown", code);
+      assertConcreteValue(fields.get("Preview date"), "Preview date", code);
+      assertConcreteValue(fields.get("PM/Owner functional review"), "PM/Owner functional review", code);
+      assertConcreteValue(fields.get("PM/Owner preview approval date"), "PM/Owner preview approval date", code);
+      assertExactValue(fields.get("Experience status"), "completed", "Experience status", code);
+    }
     assertConcreteValue(fields.get("Experience reason"), "Experience reason", code);
     if (fields.get("Experience reason").toLowerCase() === "tool-unavailable") fail("completed Experience 不能使用 tool-unavailable reason。", { code });
     for (const label of ["Behavior or functional drift", "Missing coverage", "Unresolved design gaps", "Dangling affordances", "Product risk", "PM/Owner continuation"]) assertExactValue(fields.get(label), "none", label, code);
-    assertExactValue(fields.get("Experience status"), "completed", "Experience status", code);
   } else if (route === "not-needed") {
-    assertExactValue(fields.get("Preview shown"), "no", "Preview shown", code);
-    assertConcreteValue(fields.get("PM/Owner functional review"), "PM/Owner functional review", code);
-    assertConcreteValue(fields.get("PM/Owner preview approval date"), "PM/Owner preview approval date", code);
+    if (preflight) {
+      assertPendingOrExact(fields.get("Preview shown"), "no", "Preview shown", code);
+      assertPendingOrConcrete(fields.get("PM/Owner functional review"), "PM/Owner functional review", code);
+      assertPendingOrConcrete(fields.get("PM/Owner preview approval words"), "PM/Owner preview approval words", code);
+      assertPendingOrConcrete(fields.get("PM/Owner preview approval date"), "PM/Owner preview approval date", code);
+      assertPendingOrAllowed(fields.get("Experience status"), ["completed"], "Experience status", code);
+    } else {
+      assertExactValue(fields.get("Preview shown"), "no", "Preview shown", code);
+      assertConcreteValue(fields.get("PM/Owner functional review"), "PM/Owner functional review", code);
+      assertConcreteValue(fields.get("PM/Owner preview approval date"), "PM/Owner preview approval date", code);
+      assertExactValue(fields.get("Experience status"), "completed", "Experience status", code);
+    }
     assertConcreteValue(fields.get("Experience reason"), "Experience reason", code);
     if (fields.get("Experience reason").toLowerCase() === "tool-unavailable") fail("not-needed Experience 不能使用 tool-unavailable reason。", { code });
     for (const label of ["Behavior or functional drift", "Missing coverage", "Unresolved design gaps", "Dangling affordances", "Product risk", "PM/Owner continuation"]) assertExactValue(fields.get(label), "none", label, code);
-    assertExactValue(fields.get("Experience status"), "completed", "Experience status", code);
   } else {
-    assertExactValue(fields.get("Preview shown"), "no", "Preview shown", code);
-    assertReasonedNotApplicable(fields.get("Preview date"), "Preview date", code);
-    assertReasonedNotApplicable(fields.get("PM/Owner functional review"), "PM/Owner functional review", code);
-    assertConcreteValue(fields.get("PM/Owner preview approval date"), "PM/Owner continuation date", code);
+    if (preflight) {
+      assertPendingOrExact(fields.get("Preview shown"), "no", "Preview shown", code);
+      if (!isPendingValue(fields.get("Preview date"))) assertReasonedNotApplicable(fields.get("Preview date"), "Preview date", code);
+      if (!isPendingValue(fields.get("PM/Owner functional review"))) assertReasonedNotApplicable(fields.get("PM/Owner functional review"), "PM/Owner functional review", code);
+      assertPendingOrConcrete(fields.get("PM/Owner preview approval date"), "PM/Owner continuation date", code);
+      assertPendingOrAllowed(fields.get("Experience status"), ["skipped-risk"], "Experience status", code);
+    } else {
+      assertExactValue(fields.get("Preview shown"), "no", "Preview shown", code);
+      assertReasonedNotApplicable(fields.get("Preview date"), "Preview date", code);
+      assertReasonedNotApplicable(fields.get("PM/Owner functional review"), "PM/Owner functional review", code);
+      assertConcreteValue(fields.get("PM/Owner preview approval date"), "PM/Owner continuation date", code);
+      assertExactValue(fields.get("Experience status"), "skipped-risk", "Experience status", code);
+    }
     if (isNoneValue(fields.get("Missing coverage"))) fail("Unavailable Pen route 必须记录 missing coverage。", { code });
-    assertExactValue(fields.get("Experience status"), "skipped-risk", "Experience status", code);
     assertExactValue(fields.get("Experience reason"), "tool-unavailable", "Experience reason", code);
     if (isNoneValue(fields.get("Product risk"))) fail("Unavailable Pen route 必须记录具体 product risk。", { code });
-    if (fields.get("PM/Owner continuation") !== approvalWords) fail("Unavailable Pen route 必须绑定 exact Owner continuation。", { code });
+    if (preflight) assertPendingOrConcrete(fields.get("PM/Owner continuation"), "PM/Owner continuation", code);
+    else if (fields.get("PM/Owner continuation") !== approvalWords) fail("Unavailable Pen route 必须绑定 exact Owner continuation。", { code });
   }
+}
+
+function experiencePreflightIdentities(error) {
+  const source = `${error.message}\n${stableJson(error.details ?? {})}`;
+  const identities = new Set(orderedUniqueStructuredIds(source));
+  for (const [needle, identity] of [
+    ["Coverage map", "coverage-map"],
+    ["Journey closure map", "journey-closure-map"],
+    ["Screen realization", "screen-realization"],
+    ["State realization", "state-realization"],
+    ["Step transition realization", "step-transition-realization"],
+    ["Functional audit", "functional-audit"],
+    ["artifact path", "artifact-binding"],
+    ["artifact", "artifact-binding"],
+    ["read-back", "read-back-evidence"],
+  ]) {
+    if (source.toLowerCase().includes(needle.toLowerCase())) identities.add(identity);
+  }
+  if (!identities.size) identities.add(error.code ?? "experience-manifest-contract");
+  return [...identities].sort((left, right) => left.localeCompare(right, "en"));
+}
+
+function wrapExperiencePreflightError(error) {
+  if (!(error instanceof WorkflowError)) return error;
+  const originalDetails = isPlainObject(error.details) ? error.details : {};
+  const unresolvedIdentities = experiencePreflightIdentities(error);
+  const diagnosticFingerprint = sha256Bytes(stableJson({
+    code: error.code,
+    message: error.message,
+    unresolved_identities: unresolvedIdentities,
+  }));
+  const details = {
+    ...originalDetails,
+    unresolved_identities: unresolvedIdentities,
+    diagnostics_complete: false,
+    diagnostic_fingerprint: diagnosticFingerprint,
+  };
+  if (error.details !== undefined && !isPlainObject(error.details)) details.original_details = error.details;
+  return new WorkflowError(error.message, { exitCode: error.exitCode, code: error.code, details });
 }
 
 function assertArtifactsUnder(records, prefix, label) {
@@ -2416,6 +2521,40 @@ async function executeCommand(command, options) {
     return { ok: true, command: "doctor", node: { version: process.versions.node, supported: true }, delivery };
   }
   const rootOption = requireOption(options, "root");
+  if (command === "preflight-experience") {
+    const replayed = await replayDelivery(rootOption);
+    const integrity = await validateStateIntegrity(replayed.root, replayed.state);
+    const projectionIssues = await currentProjectionIssues(replayed.root, replayed.state);
+    if (integrity.length || projectionIssues.length) {
+      fail("Experience preflight 要求当前 Delivery 证据与投影完整。", {
+        exitCode: EXIT.INTEGRITY,
+        code: "validation",
+        details: { integrity, projections: projectionIssues },
+      });
+    }
+    const state = replayed.state;
+    if (state.phase !== "experience" || !state.approvals.definition || !state.approvals.brief) fail("Experience preflight 要求已批准 Definition 与 Brief，且仍处于 Experience。", { code: "illegal-transition" });
+    if (state.approvals.preview) fail("Experience preflight 只能在 preview approval 之前运行。", { code: "illegal-transition" });
+    const route = assertEnum(requireOption(options, "experience-route"), ["pen", "existing-reference", "not-needed"], "--experience-route");
+    if (state.experience_route !== route) fail("Experience preflight route 必须与已批准 Brief route 一致。", { code: "experience-route-mismatch", details: { expected: state.experience_route, actual: route } });
+    if (!state.approvals.brief.artifacts.some((artifact) => artifact.path === "draft/experience/brief.md")) fail("Experience preflight 要求批准链绑定 draft/experience/brief.md。", { code: "experience-functional-evidence" });
+    const artifacts = await artifactRecords(replayed.root, options.artifact);
+    assertArtifactsUnder(artifacts, "draft/", "Experience preflight artifacts");
+    if (!artifacts.some((artifact) => artifact.path === "draft/experience/manifest.md")) fail("Experience preflight 必须绑定 draft/experience/manifest.md。", { code: "experience-functional-evidence" });
+    try {
+      await validateManifestJourneyEvidence(replayed.root, artifacts, route, state.approvals.brief.artifacts, undefined, { preflight: true });
+    } catch (error) {
+      throw wrapExperiencePreflightError(error);
+    }
+    return {
+      ok: true,
+      command,
+      revision: state.revision,
+      experience_route: route,
+      unresolved_identities: [],
+      diagnostics_complete: true,
+    };
+  }
   if (["status", "next", "validate"].includes(command)) {
     const replayed = await replayDelivery(rootOption);
     const integrity = await validateStateIntegrity(replayed.root, replayed.state);

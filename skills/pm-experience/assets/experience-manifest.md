@@ -2,7 +2,7 @@
 
 > Bundle-relative path：`experience/manifest.md`。物理 `bundle_root` 由 `START-HERE.md` 和 Agent route payload 分开传递，禁止在本文件固化 `draft/...` 定位。
 >
-> Create/copy this manifest only after `approve-brief` and, for Pen, after launch reaches `ready` or explicit termination. It is first bound by `approve-preview`; do not include it in Brief approval.
+> Create/copy this manifest only after `approve-brief` and, for Pen, after launch reaches `ready` or explicit termination. It is first bound by `approve-preview`; do not include it in Brief approval. Before presentation, `preflight-experience` reads the mutable manifest and current route artifacts without appending an event; it permits only the not-yet-performed presentation/Owner lifecycle fields called out below to remain `pending`.
 
 ## Artifact identity
 
@@ -99,16 +99,16 @@ Use exactly these audit identities. Shared shells, repeated layouts, identical n
 - Unresolved design gaps：{bundle-relative return locators or `none` only after the sweep}
 - Preview file result：{`ready: <exact PNG path and existence evidence>` | `unavailable: <terminal reason>` | `not-applicable-with-reason: <route reason>`}
 - Agent visual capability：`agent-visual | human-required | not-applicable-with-reason: <reason>`
-- Preview presentation to Owner：`attached | rendered | local-path | unavailable | not-applicable-with-reason: <reason>`
-- Save / clean exit：`yes | no | not-applicable-with-reason: <reason>`
+- Preview presentation to Owner：`pending | attached | rendered | local-path | unavailable | not-applicable-with-reason: <reason>`
+- Save / clean exit：`saved-open | yes | no | not-applicable-with-reason: <reason>` (`saved-open` means the current bundle was saved and verified while the same Pen handle remains live for preflight repair)
 - External assets / provenance / delivery permission：{asset} / {source} / `allowed | restricted | unknown`, or reasoned not-applicable
 
 ## PM preview and Candidate result
 
-- Preview shown：`yes | no`
-- Preview date：{date or `not-applicable-with-reason: <reason>`}
+- Preview shown：`pending | yes | no`
+- Preview date：{`pending` before presentation, date, or `not-applicable-with-reason: <reason>`}
 - PM/Owner functional review：{exact context-bound statement about tasks, states, actions, feedback, recovery and scope; `pending` only before the reply; or reasoned not-applicable for a terminal unavailable route}
-- PM/Owner feedback：{plain-language feedback or `none`}
+- PM/Owner feedback：{`pending` before review, then plain-language feedback or `none`}
 - PM/Owner preview approval words：{`pending` until a later explicit reply; then exact words passed to `approve-preview`; for terminal unavailable, use the exact risk-continuation words and do not call them preview approval}
 - PM/Owner preview approval date：{date of the preview/evidence approval or unavailable risk continuation; `pending` only before the reply}
 - Behavior or functional drift：{bundle-relative return locator or `none`}
@@ -119,6 +119,7 @@ Use exactly these audit identities. Shared shells, repeated layouts, identical n
 - PM/Owner continuation：{exact words accepting continuation without the formal artifact, or `none`}
 
 > A successful `pen` route requires `ready`, retained handle, saved `.pen`, clean exit, exact PNG and read-back artifacts, concrete Coverage/Journey paths, complete realization/audit results, functional Owner review, and exact later approval words. A non-visual Agent presents the exact PNG and waits; structural read-back is not visual inspection.
+> Before that presentation, successful Pen preflight requires `Save / clean exit: saved-open`: the current bundle is saved, but the retained Pen process has not exited. All functional identities and local artifact bindings remain strict while presentation, Owner review/feedback, approval wording/date, and Experience status may remain `pending`. After preflight passes, exit cleanly and change the field to `yes` before presentation/approval. A pass is not Owner review or approval.
 > Owner review confirms functional expression and scope only; brand/aesthetic approval is excluded, and this is not real-user usability evidence.
 >
 > Only an explicit `terminated` failure may use `Direct route: unavailable`, `Experience status: skipped-risk`, and `Experience reason: tool-unavailable`. Bind an independent terminal-evidence artifact; mark unrealized locators/evidence and audits `unavailable`/`unverified`; record the exact terminal result, missing evidence, one product risk, and the Owner's exact later continuation words/date. A live or unresolved process stays `pending`, never `skipped-risk`, and cannot be approved. Brief/manifest self-reference, generic permission, or Agent-written continuation is invalid.
