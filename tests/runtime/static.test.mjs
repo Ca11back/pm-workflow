@@ -129,6 +129,8 @@ test("semantic review checkpoints prefer a portable fresh reviewer and fall back
       /\bconcurren(?:cy|t)\b/i,
       /\bbudget\b/i,
     ]) assert.doesNotMatch(block, forbidden, `${name}: routing must not match ${forbidden}`);
+    assert.match(block, /one full(?: semantic)? .*one focused recheck/i, `${name}: bounded review cycle`);
+    assert.match(block, /review_execution.*review_result/s, `${name}: checkpoint review ledger`);
   }
 
   for (const [name, text] of Object.entries(semanticSkills)) {
@@ -283,6 +285,11 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   for (const audit of ["inventory-completeness", "transition-closure", "feedback-recovery", "functional-walkthrough", "template-collapse"]) assert.match(experienceManifest, new RegExp(audit));
   assert.match(experienceManifest, /shared shells.*identical node counts.*arbitrary node names.*monochrome output/i);
   assert.match(experienceManifest, /PM\/Owner functional review/);
+  assert.match(experienceManifest, /Review execution.*subagent-attempted.*inline-fallback/s);
+  assert.match(experienceManifest, /Review result.*pass-with-evidence.*findings.*limitation/s);
+  assert.match(experienceManifest, /one full semantic review.*one focused recheck/i);
+  assert.match(experienceBrief, /independently enterable user goal|durable-object re-entry\/recovery/i);
+  assert.match(experienceBrief, /compact card.*title, legend, or status label alone is not State evidence/i);
   assert.match(experienceManifest, /brand\/aesthetic approval/i);
   assert.match(experienceManifest, /exactly match the union of current Brief and preview approval artifacts/i);
   assert.match(discoveryTemplate, /provisional/i);
@@ -377,6 +384,10 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(runtimeSource, /validatePenArtifactEvidence/);
   assert.match(runtimeSource, /outside-owner-screen/);
   assert.match(runtimeSource, /duplicate-state-evidence/);
+  assert.match(runtimeSource, /duplicate-screen-root/);
+  assert.match(runtimeSource, /cross-owned-state-descendant/);
+  assert.match(runtimeSource, /Review execution/);
+  assert.match(runtimeSource, /Review result/);
   assert.match(runtimeSource, /semantic-identity-locator/);
   for (const heuristic of [/node_count/i, /subtree_similarity/i, /visual_novelty/i, /product_keywords/i, /aesthetic_score/i, /\.pen JSON parser/i]) {
     assert.doesNotMatch(runtimeSource, heuristic, `runtime heuristic boundary: ${heuristic}`);

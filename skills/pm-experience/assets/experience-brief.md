@@ -47,7 +47,7 @@ Create one row for every required Coverage identity. These approval-bound Covera
 
 ## Journey closure
 
-Create one row for every critical user journey. Use Coverage IDs rather than assumed screen names. Include initiating action, immediate result, later re-entry/retrieval when applicable, and recovery or terminal behavior. Every visible navigation, action, or return affordance in the implementation target must resolve to a Coverage ID in these paths; omit out-of-scope affordances rather than inventing destinations.
+Create one row for every independently enterable user goal or durable-object re-entry/recovery path. Split journeys by independent entry, primary goal, later retrieval, cancellation, or recovery responsibility; do not merge them merely to reduce row count. Use Coverage IDs rather than assumed screen names. Include initiating action, immediate result, later re-entry/retrieval when applicable, and recovery or terminal behavior. Every visible navigation, action, or return affordance in the implementation target must resolve to a Coverage ID in these paths; omit out-of-scope affordances rather than inventing destinations. There is no fixed Journey count.
 
 | Journey ID | First entry and initiating path | Immediate result | Later re-entry / retrieval | Recovery or terminal path |
 | --- | --- | --- | --- | --- |
@@ -65,7 +65,7 @@ A Screen is one stable task/context family, not a URL, canvas root, modal/page f
 
 ## Material state matrix
 
-A State is a condition-dependent variant inside the same Screen whose visible information, actions, feedback, or recovery materially changes while the primary job remains stable. Include only approved or risk-material states; do not require a universal state checklist.
+A State is a condition-dependent variant inside the same Screen whose visible information, actions, feedback, or recovery materially changes while the primary job remains stable. Include only approved or risk-material states; do not require a universal state checklist. Each material State evidence surface must expose enough task context to identify the step, a visible delta, available or unavailable actions, feedback/status, and recovery, next, or re-entry as applicable. A compact card is valid when it carries those obligations and enough context to review the step; a title, legend, or status label alone is not State evidence. Semantic review reports over-compression with exact locators and affected obligations, not a page or node threshold.
 
 | State ID | Screen ID | Coverage IDs | Trigger / guard | Visible delta | Available / unavailable actions | Feedback / status | Recovery / next / re-entry | Definition locator |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

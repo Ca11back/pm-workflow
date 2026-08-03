@@ -1375,8 +1375,9 @@ function isPendingValue(value) {
   return cleanMarkdownValue(value).toLowerCase() === "pending";
 }
 
-function markdownField(text, label, code, { allowPending = false } = {}) {
+function markdownField(text, label, code, { allowPending = false, allowMissing = false } = {}) {
   const match = text.match(new RegExp(`^- ${escapeRegExp(label)}[：:]\\s*(.+)$`, "mu"));
+  if (!match && allowMissing) return "";
   const value = cleanMarkdownValue(match?.[1] ?? "");
   if (!match || (isUnresolvedApprovalValue(value) && !(allowPending && isPendingValue(value)))) fail(`${label} 缺失或仍是占位内容。`, { code });
   return value;
@@ -1800,6 +1801,16 @@ async function validatePenArtifactEvidence(root, sourcePath, contract, coverageR
   const screenNodes = new Map();
   for (const row of screenRows) {
     const locator = requireSinglePenLocator(index, row.cells[1], sourcePath, row.id, "Artifact locator", locatorOptions);
+    const prior = [...screenNodes.entries()].find(([, nodeId]) => nodeId === locator.nodeId);
+    if (prior) {
+      failPenEvidence(`${row.id} 不能与 ${prior[0]} 共用同一个 Screen evidence root。`, {
+        rowId: row.id,
+        field: "Artifact locator",
+        expectedOwner: `${prior[0]} -> ${sourcePath}#${prior[1]}`,
+        actualLocator: locator.locator,
+        reason: "duplicate-screen-root",
+      });
+    }
     screenNodes.set(row.id, locator.nodeId);
   }
 
@@ -1831,6 +1842,21 @@ async function validatePenArtifactEvidence(root, sourcePath, contract, coverageR
     }
     stateEvidenceByOwner.get(ownerId).set(locator.nodeId, row.id);
     stateNodes.set(row.id, locator.nodeId);
+  }
+
+  for (const [screenId, screenNodeId] of screenNodes) {
+    for (const [stateId, stateNodeId] of stateNodes) {
+      const ownerId = contract.stateOwnerIds.get(stateId);
+      if (ownerId !== screenId && penNodeIsWithin(index, stateNodeId, screenNodeId)) {
+        failPenEvidence(`${screenId} Screen root 不能包含 ${stateId}（归属于 ${ownerId}）的 State evidence。`, {
+          rowId: screenId,
+          field: "Artifact locator",
+          expectedOwner: `${ownerId} -> ${sourcePath}#${screenNodes.get(ownerId)}`,
+          actualLocator: `${sourcePath}#${stateNodeId}`,
+          reason: "cross-owned-state-descendant",
+        });
+      }
+    }
   }
 
   for (const row of coverageRows) {
@@ -1920,8 +1946,31 @@ const PREFLIGHT_PENDING_FIELDS = new Set([
   "PM/Owner continuation",
 ]);
 
+const REVIEW_EXECUTION_PATTERN = /^(?:subagent-attempted|inline-fallback:\s*(\S.*))$/iu;
+const REVIEW_RESULT_PATTERN = /^(?:pass-with-evidence|(?:findings|limitation):\s*(\S.*))$/iu;
+
+function reviewValueIsConcrete(value, pattern) {
+  const match = value.match(pattern);
+  if (!match) return false;
+  if (!match[1]) return true;
+  const suffix = match[1].trim();
+  return !isUnresolvedApprovalValue(suffix) && !/^(?:none|pending|unverified|unknown|todo|tbd)$/iu.test(suffix);
+}
+
+function assertReviewLedger(fields, code, { allowReasonedNotApplicable = false } = {}) {
+  const execution = cleanMarkdownValue(fields.get("Review execution"));
+  const result = cleanMarkdownValue(fields.get("Review result"));
+  const executionValid = reviewValueIsConcrete(execution, REVIEW_EXECUTION_PATTERN)
+    || (allowReasonedNotApplicable && isReasonedNotApplicable(execution));
+  const resultValid = reviewValueIsConcrete(result, REVIEW_RESULT_PATTERN)
+    || (allowReasonedNotApplicable && isReasonedNotApplicable(result));
+  if (!executionValid) fail("Review execution（review_execution）必须记录 subagent-attempted 或具体 inline-fallback 原因。", { code });
+  if (!resultValid) fail("Review result（review_result）必须记录 pass-with-evidence、具体 findings 或 limitation。", { code });
+}
+
 function assertResolvedManifestFields(text, code, { preflight = false } = {}) {
   const values = new Map();
+  const reviewLabels = new Set(["Review execution", "Review result"]);
   for (const label of [
     "Brief", "Pen source", "Preview exports", "Read-back artifact", "Reference / route evidence",
     "Experience target", "Direct route", "Pen CLI version", "Live interactive help read", "Visual role",
@@ -1934,8 +1983,11 @@ function assertResolvedManifestFields(text, code, { preflight = false } = {}) {
     "External assets / provenance / delivery permission", "Preview shown", "Preview date",
     "PM/Owner functional review", "PM/Owner feedback", "PM/Owner preview approval words",
     "PM/Owner preview approval date", "Behavior or functional drift", "Missing coverage", "Experience status",
-    "Experience reason", "Product risk", "PM/Owner continuation",
-  ]) values.set(label, markdownField(text, label, code, { allowPending: preflight && PREFLIGHT_PENDING_FIELDS.has(label) }));
+    "Experience reason", "Product risk", "PM/Owner continuation", "Review execution", "Review result",
+  ]) values.set(label, markdownField(text, label, code, {
+    allowPending: preflight && PREFLIGHT_PENDING_FIELDS.has(label),
+    allowMissing: reviewLabels.has(label),
+  }));
   return values;
 }
 
@@ -2149,6 +2201,11 @@ async function validateManifestJourneyEvidence(root, artifacts, route, briefArti
     }
   }
 
+  const reviewLedgerPresent = fields.get("Review execution") !== "" || fields.get("Review result") !== "";
+  if (success || reviewLedgerPresent) {
+    assertReviewLedger(fields, code, { allowReasonedNotApplicable: !success });
+  }
+
   if (success) {
     if (preflight) {
       assertPendingOrExact(fields.get("Preview shown"), "yes", "Preview shown", code);
@@ -2215,6 +2272,8 @@ function experiencePreflightIdentities(error) {
     ["State realization", "state-realization"],
     ["Step transition realization", "step-transition-realization"],
     ["Functional audit", "functional-audit"],
+    ["Review execution", "review-execution"],
+    ["Review result", "review-result"],
     ["artifact path", "artifact-binding"],
     ["artifact", "artifact-binding"],
     ["read-back", "read-back-evidence"],

@@ -99,6 +99,8 @@ Use exactly these audit identities. Shared shells, repeated layouts, identical n
 - Re-entry / retrieval coverage：{Coverage IDs and artifact locators, or not applicable with reason}
 - Design gap sweep：{all approved Journeys checked once; consolidated Pen-only, Brief, and Definition gap result}
 - Unresolved design gaps：{bundle-relative return locators or `none` only after the sweep}
+- Review execution：`subagent-attempted | inline-fallback: <specific reason> | not-applicable-with-reason: <route reason>`
+- Review result：`pass-with-evidence | findings: <IDs/locators> | limitation: <specific reason> | not-applicable-with-reason: <route reason>`
 - Preview file result：{`ready: <exact PNG path and existence evidence>` | `unavailable: <terminal reason>` | `not-applicable-with-reason: <route reason>`}
 - Agent visual capability：`agent-visual | human-required | not-applicable-with-reason: <reason>`
 - Preview presentation to Owner：`pending | attached | rendered | local-path | unavailable | not-applicable-with-reason: <reason>`
@@ -127,3 +129,10 @@ Use exactly these audit identities. Shared shells, repeated layouts, identical n
 > Only an explicit `terminated` failure may use `Direct route: unavailable`, `Experience status: skipped-risk`, and `Experience reason: tool-unavailable`. Bind an independent terminal-evidence artifact; mark unrealized locators/evidence and audits `unavailable`/`unverified`; record the exact terminal result, missing evidence, one product risk, and the Owner's exact later continuation words/date. A live or unresolved process stays `pending`, never `skipped-risk`, and cannot be approved. Brief/manifest self-reference, generic permission, or Agent-written continuation is invalid.
 >
 > `existing-reference` uses the same functional IDs, realization and audit contract with exact reference locators but no Pen process. `not-needed` uses reasoned not-applicable fields and no Screen/State/Step rows because no user-visible behavior changed. An `exploration` artifact remains pending in Definition and cannot satisfy this manifest or Candidate readiness.
+
+> Before presenting a normal Experience route, record the checkpoint-local semantic review ledger above. Make one full semantic review, then at most one focused recheck after addressing its reported Findings. A changed approved baseline, behavior scope, or Experience artifact opens a new full review; routine consistency alone does not. If review reveals a new product decision, stop and return to the applicable phase instead of starting another automatic round. `review_execution` records an attempted subagent or the honest inline fallback reason; `review_result` records evidence-bearing pass, Findings, or limitation. The runtime checks that these fields are concrete but does not claim to verify host reviewer calls.
+
+```text
+review_execution: subagent-attempted | inline-fallback: <reason>
+review_result: pass-with-evidence | findings: <IDs/locators> | limitation: <reason>
+```

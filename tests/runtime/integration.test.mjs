@@ -116,6 +116,8 @@ function withJourneyEvidence(text) {
     "- Re-entry / retrieval coverage：not-applicable-with-reason: no changed retrieval behavior.",
     "- Design gap sweep：已核对全部批准 Journey，确认没有用户可见变化。",
     "- Unresolved design gaps：none",
+    "- Review execution：not-applicable-with-reason: no normal semantic presentation.",
+    "- Review result：not-applicable-with-reason: no normal semantic presentation.",
     "- Preview file result：not-applicable-with-reason: no changed preview.",
     "- Agent visual capability：not-applicable-with-reason: no changed preview.",
     "- Preview presentation to Owner：not-applicable-with-reason: route evidence was reviewed instead.",
@@ -359,6 +361,8 @@ function functionalManifest({ route = "pen", oneScreen = false, sharedScreen = f
     `- Re-entry / retrieval coverage：${unavailable ? "unverified after terminal error" : "JNY-A result and re-entry checked."}`,
     `- Design gap sweep：${unavailable ? "Pen terminated; no no-gap claim made." : "all approved Journeys checked with no gaps."}`,
     "- Unresolved design gaps：none",
+    `- Review execution：${unavailable ? "not-applicable-with-reason: terminal route has no normal semantic presentation." : "inline-fallback: deterministic test uses the main agent protocol."}`,
+    `- Review result：${unavailable ? "not-applicable-with-reason: terminal route has no normal semantic presentation." : "pass-with-evidence"}`,
     `- Preview file result：${unavailable ? "unavailable: Pen terminated before preview." : existingReference ? applicabilityReason : "ready: experience/previews/current.png exists."}`,
     `- Agent visual capability：${unavailable ? "not-applicable-with-reason: no preview exists." : "agent-visual"}`,
     `- Preview presentation to Owner：${preflight ? "pending" : unavailable ? "unavailable" : "local-path"}`,
@@ -384,7 +388,7 @@ function functionalManifest({ route = "pen", oneScreen = false, sharedScreen = f
   return lines.join("\n");
 }
 
-function penDocument({ oneScreen = false, sharedScreen = false } = {}) {
+function penDocument({ oneScreen = false, sharedScreen = false, sharedCanvas = false } = {}) {
   const node = (id, children = undefined) => ({
     type: children ? "frame" : "text",
     id,
@@ -397,10 +401,12 @@ function penDocument({ oneScreen = false, sharedScreen = false } = {}) {
   const stateAmber = node("state-amber", [node("control-x"), node("feedback-x"), node("recovery-x")]);
   const stateCobalt = node("state-cobalt", [node("control-y"), node("feedback-y"), node("recovery-y"), node("re-entry")]);
   const screenAChildren = oneScreen ? [stateAmber] : sharedScreen ? [stateAmber, stateCobalt] : [stateAmber];
-  const screens = [node("node-zebra", screenAChildren)];
-  if (!oneScreen && !sharedScreen) screens.push(node("node-orbit", [stateCobalt]));
-  screens.push(node("unrelated-root", [node("unrelated-evidence")]));
-  return `${JSON.stringify({ version: "2.15", children: screens, fileToken: "deterministic-fixture" }, null, 2)}\n`;
+  const screenRoots = [node("node-zebra", screenAChildren)];
+  if (!oneScreen && !sharedScreen) screenRoots.push(node("node-orbit", [stateCobalt]));
+  const children = sharedCanvas
+    ? [node("shared-canvas-shell", screenRoots), node("unrelated-root", [node("unrelated-evidence")])]
+    : [...screenRoots, node("unrelated-root", [node("unrelated-evidence")])];
+  return `${JSON.stringify({ version: "2.15", children, fileToken: "deterministic-fixture" }, null, 2)}\n`;
 }
 
 async function seedDraft(root) {
@@ -699,6 +705,26 @@ test("Experience preflight accepts pending Owner lifecycle without mutating stat
   assert.deepEqual(accepted.output.unresolved_identities, []);
   assert.equal(accepted.output.diagnostics_complete, true);
 
+  const missingReviewLedger = validManifest
+    .replace(/^- Review execution：.*\n/mu, "")
+    .replace(/^- Review result：.*\n/mu, "");
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), missingReviewLedger);
+  const missingReview = cli(args);
+  assert.equal(missingReview.status, 2, JSON.stringify(missingReview));
+  assert.equal(missingReview.output.error.code, "experience-functional-evidence");
+  assert.match(missingReview.output.error.message, /Review execution/u);
+
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), validManifest.replace("- Review execution：inline-fallback: deterministic test uses the main agent protocol.", "- Review execution：pending"));
+  const pendingReviewExecution = cli(args);
+  assert.equal(pendingReviewExecution.status, 2, JSON.stringify(pendingReviewExecution));
+  assert.equal(pendingReviewExecution.output.error.code, "experience-functional-evidence");
+  assert.match(pendingReviewExecution.output.error.message, /Review execution/u);
+  assert.ok(pendingReviewExecution.output.error.details.unresolved_identities.includes("review-execution"));
+
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), validManifest.replace("- Review result：pass-with-evidence", "- Review result：limitation: Agent cannot inspect the rendered PNG; Owner review is required."));
+  const acceptedWithLimitation = cli(args);
+  assert.equal(acceptedWithLimitation.status, 0, JSON.stringify(acceptedWithLimitation));
+
   await writeFile(path.join(root, "draft", "experience", "manifest.md"), validManifest.replace("- Save / clean exit：saved-open", "- Save / clean exit：yes"));
   const rejectedPrematureExit = cli(args);
   assert.equal(rejectedPrematureExit.status, 2, JSON.stringify(rejectedPrematureExit));
@@ -865,6 +891,74 @@ test("Pen artifact evidence rejects unsupported schema, false locators, duplicat
   assert.equal((await readdir(path.join(root, "events"))).length, eventCount);
 });
 
+test("Pen artifact evidence rejects duplicate or cross-owned Screen roots", async (t) => {
+  const root = await newRoot(t, "pen-screen-ownership-");
+  assert.equal(cli(["init", "--root", root, "--delivery-id", "DEL-pen-screen-ownership", "--title", "Pen Screen ownership", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+  await mkdir(path.join(root, "draft", "experience", "previews"), { recursive: true });
+  await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery\n\n- RULE-001: 用户提交输入。\n- SCN-001: 用户查看结果并恢复。\n"));
+  assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(root, "draft", "experience", "brief.md"), functionalBrief());
+  assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准功能合同", "--experience-route", "pen", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(root, "draft", "experience", "read-back.md"), "# Read-back\n\nScreen roots and descendants verified.\n");
+  await writeFile(path.join(root, "draft", "experience", "previews", "current.png"), "deterministic preview fixture\n");
+  const sourcePath = path.join(root, "draft", "experience", "prototype.pen");
+  const manifestPath = path.join(root, "draft", "experience", "manifest.md");
+  const baseManifest = functionalManifest({ preflight: true });
+  const args = [
+    "preflight-experience", "--root", root, "--artifact", "draft/experience/manifest.md",
+    "--artifact", "draft/experience/prototype.pen", "--artifact", "draft/experience/read-back.md",
+    "--artifact", "draft/experience/previews/current.png", "--experience-route", "pen",
+  ];
+  const run = async (source, manifest, reason) => {
+    await writeFile(sourcePath, source);
+    await writeFile(manifestPath, manifest);
+    const result = cli(args);
+    assert.equal(result.status, 2, JSON.stringify(result));
+    assert.equal(result.output.error.code, "experience-functional-evidence");
+    assert.match(String(result.output.error.details.reason), reason, JSON.stringify(result));
+  };
+
+  await run(
+    penDocument(),
+    baseManifest.replace(
+      "| `SCR-B` | `experience/prototype.pen#node-orbit`",
+      "| `SCR-B` | `experience/prototype.pen#node-zebra`",
+    ),
+    /duplicate-screen-root/u,
+  );
+
+  const nested = JSON.parse(penDocument());
+  const orbitIndex = nested.children.findIndex((node) => node.id === "node-orbit");
+  const [orbit] = nested.children.splice(orbitIndex, 1);
+  nested.children.find((node) => node.id === "node-zebra").children.push(orbit);
+  await run(
+    `${JSON.stringify(nested, null, 2)}\n`,
+    baseManifest,
+    /cross-owned-state-descendant/u,
+  );
+});
+
+test("Pen artifact evidence accepts distinct Screen roots inside a shared canvas shell", async (t) => {
+  const root = await newRoot(t, "pen-shared-canvas-");
+  assert.equal(cli(["init", "--root", root, "--delivery-id", "DEL-pen-shared-canvas", "--title", "Pen shared canvas", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+  await mkdir(path.join(root, "draft", "experience", "previews"), { recursive: true });
+  await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery\n\n- RULE-001: 用户提交输入。\n- SCN-001: 用户查看结果并恢复。\n"));
+  assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(root, "draft", "experience", "brief.md"), functionalBrief());
+  assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准功能合同", "--experience-route", "pen", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(root, "draft", "experience", "prototype.pen"), penDocument({ sharedCanvas: true }));
+  await writeFile(path.join(root, "draft", "experience", "read-back.md"), "# Read-back\n\nA shared canvas shell contains two distinct functional Screen roots.\n");
+  await writeFile(path.join(root, "draft", "experience", "previews", "current.png"), "shared canvas deterministic fixture\n");
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), functionalManifest({ preflight: true }));
+  const accepted = cli([
+    "preflight-experience", "--root", root, "--artifact", "draft/experience/manifest.md",
+    "--artifact", "draft/experience/prototype.pen", "--artifact", "draft/experience/read-back.md",
+    "--artifact", "draft/experience/previews/current.png", "--experience-route", "pen",
+  ]);
+  assert.equal(accepted.status, 0, JSON.stringify(accepted));
+  assert.deepEqual(accepted.output.unresolved_identities, []);
+});
+
 test("Pen artifact evidence accepts distinct shared-Screen States and approved external reasons", async (t) => {
   const root = await newRoot(t, "pen-external-reason-");
   assert.equal(cli(["init", "--root", root, "--delivery-id", "DEL-pen-external-reason", "--title", "Pen external reason", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
@@ -901,7 +995,11 @@ test("route-aware Experience validation accepts existing-reference and explicit 
     assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准功能合同", "--experience-route", item.route, "--actor-role", "product-owner"]).status, 0);
     await writeFile(path.join(root, "draft", "experience", item.artifact), `${item.name} deterministic evidence\n`);
     const validManifest = functionalManifest({ route: item.manifestRoute, approval: item.evidence });
-    await writeFile(path.join(root, "draft", "experience", "manifest.md"), functionalManifest({ route: item.manifestRoute, preflight: true, approval: item.evidence }));
+    const preflightManifest = functionalManifest({ route: item.manifestRoute, preflight: true, approval: item.evidence });
+    const withoutReviewLedger = preflightManifest
+      .replace(/^- Review execution：.*\n/mu, "")
+      .replace(/^- Review result：.*\n/mu, "");
+    await writeFile(path.join(root, "draft", "experience", "manifest.md"), item.manifestRoute === "unavailable" ? withoutReviewLedger : preflightManifest);
     const acceptedPreflight = cli([
       "preflight-experience", "--root", root, "--artifact", "draft/experience/manifest.md",
       "--artifact", `draft/experience/${item.artifact}`, "--experience-route", item.route,
@@ -936,6 +1034,30 @@ test("route-aware Experience validation accepts existing-reference and explicit 
     const result = cli(args);
     assert.equal(result.status, 0, JSON.stringify(result));
   }
+});
+
+test("not-needed Experience route does not require a semantic review ledger", async (t) => {
+  const root = await newRoot(t, "route-not-needed-ledger-");
+  assert.equal(cli(["init", "--root", root, "--delivery-id", "DEL-not-needed-ledger", "--title", "Not needed ledger", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+  await seedDraft(root);
+  assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
+  assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准既有行为", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
+  const manifestPath = path.join(root, "draft", "experience", "manifest.md");
+  const manifestWithoutLedger = (await readFile(manifestPath, "utf8"))
+    .replace(/^- Review execution：.*\n/mu, "")
+    .replace(/^- Review result：.*\n/mu, "");
+  await writeFile(manifestPath, manifestWithoutLedger);
+  const preflight = cli([
+    "preflight-experience", "--root", root, "--artifact", "draft/experience/manifest.md",
+    "--artifact", "draft/experience/evidence.md", "--experience-route", "not-needed",
+  ]);
+  assert.equal(preflight.status, 0, JSON.stringify(preflight));
+  const approved = cli([
+    "approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md",
+    "--artifact", "draft/experience/evidence.md", "--evidence", "批准", "--experience-route", "not-needed",
+    "--actor-role", "product-owner",
+  ]);
+  assert.equal(approved.status, 0, JSON.stringify(approved));
 });
 
 test("one-Screen arbitrary-name monochrome functional evidence passes without visual heuristics", async (t) => {

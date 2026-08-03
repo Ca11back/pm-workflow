@@ -25,6 +25,13 @@
 - Reviewed manifest：{exact files and versions}
 - Candidate scope hygiene：{physical files exactly match manifest; approval-bound Experience artifacts exactly match the Experience manifest declaration; no exploration/failed/superseded/historical files}
 - Prior report/findings for re-review：{paths/FND IDs or none}
+- Review execution：`subagent-attempted | inline-fallback: <specific reason>`
+- Review result：`pass-with-evidence | findings: <IDs/locators> | limitation: <specific reason>`
+
+```text
+review_execution: subagent-attempted | inline-fallback: <reason>
+review_result: pass-with-evidence | findings: <IDs/locators> | limitation: <reason>
+```
 
 ## Result
 
@@ -36,7 +43,7 @@
 - Candidate change since prior Review：`none | finding-driven -> findings-open/addressed-awaiting-review | other behavior/included .pen/preview -> not-run` / {evidence and historical report path}
 - Scope limitation：{not reviewed / unavailable material}
 
-> Any new Finding makes this report `findings-open`, regardless of severity. Same-session work is `self-check` and is never described as independent. This report never edits product facts, accepts risk, changes runtime state, creates a Release snapshot, or hands work to development.
+> Any new Finding makes this report `findings-open`, regardless of severity. Same-session work is `self-check` and is never described as independent. Run one full Review and at most one focused recheck after addressing its Findings; changed approved baseline, behavior scope, or included Experience artifacts are required before a new full Review. Routine consistency and a reviewer's failed dispatch do not create another automatic round. This report never edits product facts, accepts risk, changes runtime state, creates a Release snapshot, or hands work to development.
 
 ## Behavior tuples checked
 
