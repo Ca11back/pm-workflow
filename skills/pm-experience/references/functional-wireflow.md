@@ -20,7 +20,7 @@ The prototype question, functional representation detail, interaction coverage, 
 5. For each Step, require a visible semantic trigger/control, input/guard, immediate feedback, destination/result, and failure/recovery.
 6. If decomposition needs new eligibility, input, validation, permission, lifecycle, result, commitment, notification, persistence, or recovery behavior, stop and use the Definition-return path.
 
-Create task-shaped artifact structures in reviewable batches. A real input, choice, collection, review, or result obligation needs visible functional structure; an icon or sentence claiming the function is not a substitute. Read back descendants, content, semantic controls/signifiers, feedback, connections, recovery, re-entry, hierarchy and bounds—not only root names or bounds.
+Create task-shaped artifact structures in reviewable batches. A real input, choice, collection, review, or result obligation needs visible functional structure; an icon or sentence claiming the function is not a substitute. Read back descendants, content, semantic controls/signifiers, feedback, connections, recovery, re-entry, hierarchy and bounds—not only root names or bounds. Each material State must identify the state-specific descendant or variant that proves its visible delta, action availability, feedback and recovery. Several States may share one Screen root, but the shared root alone is not evidence that those States exist.
 
 ## Functional audit
 

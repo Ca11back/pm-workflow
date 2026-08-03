@@ -61,9 +61,11 @@ Copy the complete approved Screen ID set unchanged. Artifact locators must ident
 
 ## State realization
 
-| State ID | Artifact locator | Visible delta / feedback / actions / recovery evidence | Realization result |
+Several States may share one Screen root, but every material State must name its state-specific descendant or variant evidence. A generic Screen-root locator alone cannot receive `pass` for multiple States.
+
+| State ID | State-specific artifact locator | Visible-delta descendant / feedback / actions / recovery evidence | Realization result |
 | --- | --- | --- | --- |
-| `STATE-001` | `experience/prototype.pen#<node>` | {descendant locators and observed delta, feedback, action availability and recovery/re-entry} | `pass | gap | contradiction | unverified | not-applicable-with-reason: <reason>` |
+| `STATE-001` | `experience/prototype.pen#<state-variant-or-descendant>` | {exact descendant/variant locators and observed delta, feedback, action availability and recovery/re-entry} | `pass | gap | contradiction | unverified | not-applicable-with-reason: <reason>` |
 
 ## Step transition realization
 

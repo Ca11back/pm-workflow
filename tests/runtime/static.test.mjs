@@ -150,6 +150,7 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(functionalWireflow, /open, plain-language and job-shaped/);
   assert.match(functionalWireflow, /reviewable batches/);
   assert.match(functionalWireflow, /Read back descendants/);
+  assert.match(functionalWireflow, /state-specific descendant or variant/);
   assert.match(functionalWireflow, /One complete Screen may pass/);
   assert.match(functionalWireflow, /Justified identical state structures may pass/);
   assert.match(experienceManifest, /\| Coverage ID \| Markdown locator .*\| Runtime relationship \|/);
@@ -168,6 +169,7 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(experienceManifest, /Unresolved design gaps/);
   assert.match(experienceManifest, /## Screen realization/);
   assert.match(experienceManifest, /## State realization/);
+  assert.match(experienceManifest, /State-specific artifact locator/);
   assert.match(experienceManifest, /## Step transition realization/);
   assert.match(experienceManifest, /## Functional audit/);
   for (const audit of ["inventory-completeness", "transition-closure", "feedback-recovery", "functional-walkthrough", "template-collapse"]) assert.match(experienceManifest, new RegExp(audit));
@@ -216,6 +218,10 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(reference, /visible triggers, feedback, destination\/result, failure\/recovery, re-entry, connections and bounds/);
   assert.match(reference, /task-shaped Screen\/State structures in reviewable batches/);
   assert.match(reference, /Read back descendants for every Screen\/State\/Step/);
+  assert.match(reference, /absolute paths inside that root/);
+  assert.match(reference, /recover with judgment/);
+  assert.match(reference, /never simplify the contract merely to make a command succeed/);
+  assert.doesNotMatch(reference, /Do not automatically retry/);
   assert.match(reference, /Root names, root bounds, frame count, icons, or explanatory prose alone do not prove/);
   assert.match(reviewMethod, /Independently derive the functional representation obligations/);
   assert.match(reviewMethod, /Text that says.*is not a substitute/s);
