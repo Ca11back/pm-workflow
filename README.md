@@ -64,7 +64,7 @@ product-deliveries/DEL-example/
 npx skills add <owner>/<repo> --skill '*'
 ```
 
-不要只安装 `pm-delivery`；它是薄路由。Node 20+ 是 runtime 最低版本，`doctor` 会明确验证 runtime 与可选 Delivery 边界。当前 runtime/package schema 均为 `3.0.0` / `3`；非当前 schema 的 Delivery 直接失败，不迁移、不兼容，需在空目录重新初始化。
+不要只安装 `pm-delivery`；它是薄路由。Node 20+ 是 runtime 最低版本，`doctor` 会明确验证 runtime 与可选 Delivery 边界。当前 runtime/package/schema 为唯一的 `4.0.0` / `4` 合同；3.x 及更早 Delivery 直接失败，不迁移、不双读、不兼容，需在空目录重新初始化。
 
 ## 关键证据语义
 
@@ -79,6 +79,10 @@ npx skills add <owner>/<repo> --skill '*'
 - `start-change` 可直接基于任何当前本地完成的 Release；无需先发送或取得回执。它把上一轮 Release 及已有的可选 sending/receipt 审计一并归档，新 Release 不继承旧审计。
 
 Pen 只支持本机 0.3.1 或更高版本的 direct interactive 路线。当前 Agent 读取实时 help 并操作一个 `pen interactive` 进程；不使用 Pen Agent Mode、嵌套模型、MCP/plugin、runner 或版本适配层，runtime 也不解释 Pen 协议。
+
+正式 Experience 先从已批准 Coverage/Journey 派生 Screen inventory、Material state matrix 和逐步 Journey transition contract，再由 Pen 或精确 existing reference 实现。每个 Screen 声明稳定任务与所需内容/功能区域/语义动作，每个 State 声明可见变化、反馈和恢复，每个 Step 声明真实触发、即时反馈、结果与失败路径。manifest 将这些身份映射到实际 artifact/read-back 并完成 inventory、transition、feedback/recovery、逐步 walkthrough 和 `template-collapse` 审计。runtime 只校验 ID、引用、route、artifact binding 与跨字段一致性，不根据页名、节点数、关键词、配色、相似度或审美判断产品语义。
+
+功能原型不要求刻意做出粗糙、手绘、黑白等“低保真效果”；表示细节以解释功能所需为准。默认不投入品牌、配色、字体、阴影、装饰图像、动效或像素级视觉润色，Owner 确认的是精确证据是否表达已批准任务、状态、动作、反馈、恢复和范围，不是品牌/美学审批，也不冒充真实用户可用性测试。
 
 启动结果按 `running -> ready | terminated` 处理：后台进程 handle 必须保留并继续同一会话；空输出或尚未出现 prompt 只表示 `running`。只有明确终止及其终态才能记录 `tool-unavailable`；进程仍活着时不得检查最终文件推断失败、填写失败证据、请求降级或新开 Pen。到达 `ready` 后才进行设计、回读、保存、预览和 manifest 记录。
 

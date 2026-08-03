@@ -84,6 +84,7 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   const reference = await readFile(path.join(candidateRoot, "skills", "pm-experience", "references", "pen-direct.md"), "utf8");
   const experienceBrief = await readFile(path.join(candidateRoot, "skills", "pm-experience", "assets", "experience-brief.md"), "utf8");
   const experienceManifest = await readFile(path.join(candidateRoot, "skills", "pm-experience", "assets", "experience-manifest.md"), "utf8");
+  const functionalWireflow = await readFile(path.join(candidateRoot, "skills", "pm-experience", "references", "functional-wireflow.md"), "utf8");
   const discoveryTemplate = await readFile(path.join(candidateRoot, "skills", "pm-experience", "assets", "prototype-discovery.md"), "utf8");
   const gapProtocol = await readFile(path.join(candidateRoot, "skills", "pm-experience", "references", "design-gap-protocol.md"), "utf8");
   const reviewTemplate = await readFile(path.join(candidateRoot, "skills", "pm-reverse-review", "assets", "reverse-review.md"), "utf8");
@@ -117,7 +118,7 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(skill, /Do not bind `draft\/experience\/manifest\.md` here/);
   assert.match(skill, /After `approve-brief` succeeds, do not edit the approved Brief/);
   assert.match(skill, /behavior-preserving Brief scope\/fidelity\/coverage corrections return to Experience/);
-  assert.match(skill, /copy every approved Coverage ID, relationship statement, and Journey ID unchanged/);
+  assert.match(skill, /copy every approved Coverage\/Journey\/Screen\/State\/Step identity unchanged/);
   assert.match(experienceBrief, /\| Coverage ID \| Markdown locator .*\| Runtime relationship \|/);
   assert.match(experienceBrief, /approval-bound Coverage IDs and relationship values must be copied unchanged/);
   assert.match(experienceBrief, /## Journey closure/);
@@ -127,9 +128,35 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(experienceBrief, /Keep approval words\/date `pending` while presenting this Brief/);
   assert.match(experienceBrief, /Never predict or fabricate the reply/);
   assert.match(experienceBrief, /After that event, do not edit this Brief/);
+  assert.match(experienceBrief, /## Prototype scope/);
+  assert.match(experienceBrief, /Functional representation detail/);
+  assert.match(experienceBrief, /High-fidelity visual-design non-goals/);
+  assert.match(experienceBrief, /Do not deliberately make the result rough/);
+  assert.match(experienceBrief, /## Screen inventory/);
+  assert.match(experienceBrief, /\| Screen ID \| Coverage IDs \| Journey IDs \| Primary job \| Purpose \/ archetype \|/);
+  assert.match(experienceBrief, /Required content groups/);
+  assert.match(experienceBrief, /Functional regions \/ hierarchy/);
+  assert.match(experienceBrief, /## Material state matrix/);
+  assert.match(experienceBrief, /Visible delta/);
+  assert.match(experienceBrief, /Available \/ unavailable actions/);
+  assert.match(experienceBrief, /Recovery \/ next \/ re-entry/);
+  assert.match(experienceBrief, /## Journey transition contract/);
+  assert.match(experienceBrief, /Visible semantic trigger \/ control/);
+  assert.match(experienceBrief, /Immediate feedback/);
+  assert.match(experienceBrief, /Destination \/ result/);
+  assert.match(experienceBrief, /Failure \/ recovery/);
+  assert.match(functionalWireflow, /Screen.*stable task\/context family/);
+  assert.match(functionalWireflow, /Material State/);
+  assert.match(functionalWireflow, /open, plain-language and job-shaped/);
+  assert.match(functionalWireflow, /reviewable batches/);
+  assert.match(functionalWireflow, /Read back descendants/);
+  assert.match(functionalWireflow, /One complete Screen may pass/);
+  assert.match(functionalWireflow, /Justified identical state structures may pass/);
   assert.match(experienceManifest, /\| Coverage ID \| Markdown locator .*\| Runtime relationship \|/);
   assert.match(experienceManifest, /Candidate artifact.*`experience\/brief\.md`/);
   assert.match(experienceManifest, /Candidate artifact.*`experience\/manifest\.md`/);
+  assert.match(experienceManifest, /only the current route files/);
+  assert.match(experienceManifest, /independent terminal evidence/);
   assert.match(experienceManifest, /only after `approve-brief`/);
   assert.match(experienceManifest, /first bound by `approve-preview`/);
   assert.match(experienceManifest, /## Journey closure map/);
@@ -139,6 +166,14 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(experienceManifest, /Re-entry \/ retrieval coverage/);
   assert.match(experienceManifest, /Design gap sweep/);
   assert.match(experienceManifest, /Unresolved design gaps/);
+  assert.match(experienceManifest, /## Screen realization/);
+  assert.match(experienceManifest, /## State realization/);
+  assert.match(experienceManifest, /## Step transition realization/);
+  assert.match(experienceManifest, /## Functional audit/);
+  for (const audit of ["inventory-completeness", "transition-closure", "feedback-recovery", "functional-walkthrough", "template-collapse"]) assert.match(experienceManifest, new RegExp(audit));
+  assert.match(experienceManifest, /shared shells.*identical node counts.*arbitrary node names.*monochrome output/i);
+  assert.match(experienceManifest, /PM\/Owner functional review/);
+  assert.match(experienceManifest, /brand\/aesthetic approval/i);
   assert.match(experienceManifest, /exactly match the union of current Brief and preview approval artifacts/i);
   assert.match(discoveryTemplate, /provisional/i);
   assert.match(discoveryTemplate, /cannot approve Definition, Brief, preview, or Candidate/i);
@@ -146,16 +181,22 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(gapProtocol, /Brief-only gap/i);
   assert.match(gapProtocol, /Definition behavior gap/i);
   assert.match(gapProtocol, /finish one read-only sweep/i);
-  assert.match(experienceManifest, /Process state：`running \| ready \| terminated`/);
+  assert.match(experienceManifest, /Process state：`ready \| terminated \| not-applicable-with-reason/);
+  assert.match(experienceManifest, /remains `running` working state and cannot be submitted/);
   assert.match(experienceManifest, /Resumable handle retained/);
   assert.match(experienceManifest, /Empty output while the process is alive remains `running`/);
   assert.match(experienceManifest, /A live or unresolved process stays `pending`, never `skipped-risk`/);
+  assert.match(experienceManifest, /Brief\/manifest cannot cite themselves as route evidence/);
+  assert.match(experienceManifest, /Owner's exact later continuation words\/date/);
+  assert.match(skill, /Only a later explicit Owner reply accepting continuation without the formal artifact/);
+  assert.match(skill, /Brief approval, generic setup permission, or Agent-written wording is not continuation/);
+  assert.match(reference, /bind an independent terminal-evidence artifact/);
   for (const removedField of [/Route discovery evidence/, /Capability check evidence/, /Direct-operation attempt/, /Retry result/]) {
     assert.doesNotMatch(experienceManifest, removedField);
   }
-  assert.match(experienceManifest, /Agent visual capability \/ inspection/);
+  assert.match(experienceManifest, /Agent visual capability/);
   assert.match(experienceManifest, /Preview presentation to Owner/);
-  assert.match(experienceManifest, /Structural read-back is not visual inspection/);
+  assert.match(experienceManifest, /structural read-back is not visual inspection/i);
   assert.match(skill, /If the Agent cannot inspect images/);
   assert.match(skill, /If neither the Agent nor the Owner can access the preview, keep Experience blocked/);
   assert.match(skill, /start-draft-revision/);
@@ -172,7 +213,16 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(reviewTemplate, /Dangling-affordance check/);
   assert.match(reviewProbes, /relationship statement/);
   assert.match(reviewProbes, /persistent or asynchronously changing user-visible object/);
-  assert.match(reference, /every visible navigation\/action\/return target/);
+  assert.match(reference, /visible triggers, feedback, destination\/result, failure\/recovery, re-entry, connections and bounds/);
+  assert.match(reference, /task-shaped Screen\/State structures in reviewable batches/);
+  assert.match(reference, /Read back descendants for every Screen\/State\/Step/);
+  assert.match(reference, /Root names, root bounds, frame count, icons, or explanatory prose alone do not prove/);
+  assert.match(reviewMethod, /Independently derive the functional representation obligations/);
+  assert.match(reviewMethod, /Text that says.*is not a substitute/s);
+  assert.match(reviewMethod, /product-neutral `template-collapse` probe/);
+  assert.match(reviewMethod, /More frames, labels, keywords or visual variants cannot compensate/);
+  assert.match(reviewTemplate, /Independently reconstructed functional obligations/);
+  assert.match(reviewTemplate, /Owner functional-review boundary/);
   for (const text of [skill, reference, experienceBrief, experienceManifest, reviewTemplate, reviewMethod, reviewProbes, readme]) {
     assert.doesNotMatch(text, /mutually-exclusive with <Coverage ID>|coexists with <Coverage ID>|independent example/);
   }
@@ -186,6 +236,12 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   }
   for (const text of [definitionSkill, experienceBrief, experienceManifest, reference, reviewMethod, reviewProbes]) {
     assert.doesNotMatch(text, /订单|我的|Orders|Profile/, "journey closure must not require product-specific screens");
+  }
+  const runtimeSource = await readFile(path.join(candidateRoot, "runtime", "pm-workflow.mjs"), "utf8");
+  assert.doesNotMatch(runtimeSource, /最小原型/, "runtime next action must not collapse functional fidelity into a minimal visual target");
+  assert.match(runtimeSource, /functional wireflow Brief.*功能原型、回读并展示预览/);
+  for (const heuristic of [/node_count/i, /subtree_similarity/i, /visual_novelty/i, /product_keywords/i, /aesthetic_score/i, /\.pen JSON parser/i]) {
+    assert.doesNotMatch(runtimeSource, heuristic, `runtime heuristic boundary: ${heuristic}`);
   }
   assert.match(readme, /`start-draft-revision`/);
   assert.match(readme, /Candidate 后仍只走 Finding 修订路径/);
@@ -231,8 +287,8 @@ test("formal source is a clean current-schema implementation without migration c
   }
   const version = JSON.parse(await readFile(path.join(candidateRoot, "runtime", "runtime-version.json"), "utf8"));
   const pkg = JSON.parse(await readFile(path.join(candidateRoot, "package.json"), "utf8"));
-  assert.deepEqual(version, { runtime_version: "3.0.0", schema_version: 3, minimum_node_major: 20 });
-  assert.equal(pkg.version, "3.0.0");
+  assert.deepEqual(version, { runtime_version: "4.0.0", schema_version: 4, minimum_node_major: 20 });
+  assert.equal(pkg.version, "4.0.0");
   assert.deepEqual((await readdir(path.join(candidateRoot, "skills", "pm-delivery", "scripts"))).sort(), ["pm-workflow.mjs"]);
 });
 

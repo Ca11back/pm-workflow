@@ -13,6 +13,10 @@
 - Experience lifecycle authority：`experience/manifest.md` plus generated `START-HERE.md` / {route, status, source and preview agreement; Definition files are not mutable lifecycle snapshots}
 - Multi-state relationship check：{each approved Coverage ID and its relationship statement; agreement across Brief/Pen read-back/manifest; any contradiction with approved behavior}
 - Journey closure / re-entry check：{critical journeys independently derived from Markdown; Journey ID agreement; applicable later retrieval of persistent/asynchronous objects}
+- Independently reconstructed functional obligations：{Screen primary jobs; material States; required content/regions/semantic controls; Step triggers, feedback, destination/results, failure/recovery and re-entry derived from Definition/Journeys before trusting the manifest}
+- Screen / State / Step realization check：{exact identity sets and actual artifact/read-back locators; missing or invented obligations}
+- Template-collapse probe：{shared-shell/task rationale; different primary jobs retain their required task-shaped content/control evidence; no node-count, keyword, name, monochrome or aesthetic heuristic}
+- Owner functional-review boundary：{exact preview/reference confirmed for tasks, states, actions, feedback, recovery and scope; brand/aesthetic approval excluded; not represented as a real-user usability test}
 - Dangling-affordance check：{every visible navigation/action/return target and destination, or none}
 - Pen structure verification：`direct-read-only | isolated-copy | preview-and-recorded-read-back-only | not-applicable` / {evidence or explicit limitation}
 - Isolated-copy boundary / cleanup：`not-used | authorized-copy-cleaned | authorized-copy-retained` / {caller-authorized scope evidence and exact cleanup result}

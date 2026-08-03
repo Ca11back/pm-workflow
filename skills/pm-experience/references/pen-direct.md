@@ -20,14 +20,15 @@ Empty output from a yield is pending, not failure. Until explicit termination, t
 
 ## Operate the ready session
 
-For the formal route, only after `ready`, copy `experience-manifest.md` to `experience/manifest.md` and copy every approval-bound Coverage ID, Markdown locator, page/state, and relationship from the Brief. A separate mutation DSL file is not required. In exploration mode, update only the provisional discovery note, never create a formal manifest, and return observations to Definition.
+For the formal route, only after `ready`, copy `experience-manifest.md` to `experience/manifest.md` and copy every approval-bound Coverage/Journey/Screen/State/Step identity and relationship from the Brief. A separate mutation DSL file is not required. In exploration mode, update only the provisional discovery note, never create a formal manifest, and return observations to Definition.
 
 In the same process:
 
 1. Read app state/schema and only relevant guidelines.
-2. Create the approved pages/states in reviewable batches; do not add decorative navigation or action affordances whose destinations are not covered.
-3. Read back content/bounds, Coverage IDs, Journey IDs, and every visible navigation/action/return target. Fix missing, clipped, overlapping, contradictory, unreachable, or dangling states before claiming coverage. On a non-visual gap, stop inventing the affected path but finish one read-only sweep of the other approved Journeys to consolidate independent gaps. Static/non-clickable fidelity removes click behavior, not the need to show every destination required to understand an approved journey.
-4. Generate the preview, save the `.pen`, verify both files, and exit cleanly.
+2. Create task-shaped Screen/State structures in reviewable batches from each primary job and its required content groups, functional regions, semantic actions, feedback and recovery. Do not force a rough visual style, spend the default work on high-fidelity brand/aesthetic polish, or add decorative affordances whose destinations are not covered.
+3. Read back descendants for every Screen/State/Step: meaningful content, semantic controls/signifiers, hierarchy, visible triggers, feedback, destination/result, failure/recovery, re-entry, connections and bounds. Root names, root bounds, frame count, icons, or explanatory prose alone do not prove those obligations. Fix missing, clipped, overlapping, contradictory, unreachable, or dangling evidence before claiming coverage. On a non-visual gap, stop inventing the affected path but finish one read-only sweep of the other approved Journeys to consolidate independent gaps. Static/non-clickable evidence may annotate a low-risk transition, but canvas adjacency or a whole-frame hotspot cannot replace a required visible control/result.
+4. Complete the manifest realization tables and functional audits. Probe `template-collapse` semantically: shared shells and repeated layouts are allowed, but different primary jobs must still expose their own required content/control structure or a task reason for identical regions.
+5. Generate the preview, save the `.pen`, verify the `.pen`, PNG and read-back artifacts, and exit cleanly.
 
 Remove or correct an accidental affordance when that stays inside the approved Brief. If closing the journey requires a new destination or product behavior absent from the Brief, stop before preview approval and follow the Skill's explicit pre-Candidate Draft-revision path; do not invent the missing scope in Pen or report the old coverage as complete.
 
@@ -45,6 +46,6 @@ Only a later context-bound Owner reply after the preview was presented can appro
 
 ## Record only a terminal failure
 
-Only an explicit `terminated` preflight/launch/session failure can become `tool-unavailable`. Then create the manifest, record the exact non-secret terminal result and one product impact, and stop. Do not automatically retry, delete a global Pen socket, switch tools, or claim completion. A later Owner-authorized attempt uses fresh targets.
+Only an explicit `terminated` preflight/launch/session failure can become `tool-unavailable`. Then create the manifest, bind an independent terminal-evidence artifact, mark unrealized functional evidence `unverified`, record the exact non-secret terminal result, missing evidence, and one product impact, present those facts to the Owner, and stop. Do not automatically retry, delete a global Pen socket, switch tools, or claim completion. Only the Owner's later exact reply accepting continuation without the formal artifact can authorize the Skill's unavailable continuation path; generic permission and Agent-authored words cannot. A later Owner-authorized attempt uses fresh targets.
 
 Record the compact launch state, one-process result, structural/visual review, preview presentation, save/exit result, Coverage/Journey read-back, dangling-affordance result, output identities, and asset provenance in `experience/manifest.md`.

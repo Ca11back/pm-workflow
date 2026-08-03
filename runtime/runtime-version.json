@@ -1,5 +1,5 @@
 {
-  "runtime_version": "3.0.0",
-  "schema_version": 3,
+  "runtime_version": "4.0.0",
+  "schema_version": 4,
   "minimum_node_major": 20
 }

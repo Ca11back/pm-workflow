@@ -29,6 +29,15 @@ const validBrief = [
   "",
   "当前范围没有新增可见界面。",
   "",
+  "## Prototype scope",
+  "",
+  "- Prototype question：确认当前改动不产生新的用户可见行为。",
+  "- Functional representation detail：无需新增功能表达；保留现有行为说明。",
+  "- Interaction coverage：核对既有入口、结果、恢复与再次进入均未改变。",
+  "- Context / surface：既有用户界面与使用环境。",
+  "- High-fidelity visual-design non-goals：品牌、配色、字体、阴影和装饰美学不在本轮范围。",
+  "- Functional contract applicability：not-applicable-with-reason: 当前范围没有用户可见行为变化。",
+  "",
   "## Required coverage",
   "",
   "- Re-entry / retrieval：用户通过既有入口再次查看当前状态；本测试不新增导航。",
@@ -51,23 +60,82 @@ function withJourneyEvidence(text) {
   return [
     text.trimEnd(),
     "",
+    "- Brief：`experience/brief.md`",
+    "- Pen source：not-applicable-with-reason: not-needed route does not use Pen.",
+    "- Preview exports：not-applicable-with-reason: no changed user-visible artifact.",
+    "- Read-back artifact：not-applicable-with-reason: no changed user-visible artifact.",
+    "- Reference / route evidence：`experience/evidence.md`",
+    "- Experience target：not-needed",
+    "- Direct route：not-needed",
+    "- Pen CLI version：not-applicable-with-reason: not-needed route does not use Pen.",
+    "- Live interactive help read：not-applicable-with-reason: not-needed route does not use Pen.",
+    "- Visual role：implementation-target",
+    "- Functional realization applicability：not-applicable-with-reason: current scope has no visible behavior change.",
+    "- Smallest scope / functional detail：existing behavior only / no new functional representation.",
+    "- Scope/fidelity approval：负责人批准无需新增体验产物。",
+    "",
+    "## Launch state",
+    "",
+    "- Process state：not-applicable-with-reason: not-needed route does not launch Pen.",
+    "- Resumable handle retained：not-applicable-with-reason: no Pen process.",
+    "- Initial prompt：not-applicable-with-reason: no Pen process.",
+    "- Terminal result：not-applicable-with-reason: no Pen process.",
+    "",
     "## Coverage map",
     "",
     "| Coverage ID | Markdown locator | Pen node locator | Preview/state | Runtime relationship | Sync result |",
     "| --- | --- | --- | --- | --- | --- |",
-    "| `PAGE-01` | `delivery.md#RULE-001` | existing reference `PAGE-01` | 既有状态 | 独立既有页面 | synced |",
+    "| `PAGE-01` | `delivery.md#RULE-001` | not-applicable-with-reason: no changed artifact. | 既有状态 | 独立既有页面 | not-applicable-with-reason: no visible change. |",
     "",
     "## Journey closure map",
     "",
     "| Journey ID | Approved Coverage path | Observed Pen/reference path | Closure result |",
     "| --- | --- | --- | --- |",
-    "| `JNY-001` | `PAGE-01` | existing reference `PAGE-01` | closed |",
+    "| `JNY-001` | `PAGE-01` | not-applicable-with-reason: no changed visible path. | not-applicable-with-reason: no changed visible path. |",
     "",
-    "- Journey closure read-back：JNY-001 已从既有入口核对到当前结果。",
-    "- Dangling affordances：none；本测试没有新增可见入口。",
-    "- Re-entry / retrieval coverage：PAGE-01 通过既有入口覆盖。",
-    "- Design gap sweep：已核对全部批准 Journey，未发现跨合同缺口。",
+    "## Functional audit",
+    "",
+    "| Audit item | Scope | Evidence | Result |",
+    "| --- | --- | --- | --- |",
+    "| `inventory-completeness` | no changed Experience inventory | route evidence | not-applicable-with-reason: no visible behavior change. |",
+    "| `transition-closure` | no changed transitions | route evidence | not-applicable-with-reason: no visible behavior change. |",
+    "| `feedback-recovery` | no changed feedback or recovery | route evidence | not-applicable-with-reason: no visible behavior change. |",
+    "| `functional-walkthrough` | no changed functional steps | route evidence | not-applicable-with-reason: no visible behavior change. |",
+    "| `template-collapse` | no artifact screens | route evidence | not-applicable-with-reason: no artifact structure. |",
+    "",
+    "## Direct-operation evidence",
+    "",
+    "- App state / schema read：not-applicable-with-reason: no Pen process.",
+    "- Guidelines and document discovery：核对当前 Definition 与 route evidence。",
+    "- Direct mutation summary：not-applicable-with-reason: no changed Experience artifact.",
+    "- Structural/layout read-back：not-applicable-with-reason: no changed Experience artifact.",
+    "- Coverage read-back：not-applicable-with-reason: current scope has no changed Coverage realization.",
+    "",
+    "- Journey closure read-back：not-applicable-with-reason: no changed visible journey.",
+    "- Dangling affordances：none",
+    "- Re-entry / retrieval coverage：not-applicable-with-reason: no changed retrieval behavior.",
+    "- Design gap sweep：已核对全部批准 Journey，确认没有用户可见变化。",
     "- Unresolved design gaps：none",
+    "- Preview file result：not-applicable-with-reason: no changed preview.",
+    "- Agent visual capability：not-applicable-with-reason: no changed preview.",
+    "- Preview presentation to Owner：not-applicable-with-reason: route evidence was reviewed instead.",
+    "- Save / clean exit：not-applicable-with-reason: no Pen process.",
+    "- External assets / provenance / delivery permission：not-applicable-with-reason: no external assets.",
+    "",
+    "## PM preview and Candidate result",
+    "",
+    "- Preview shown：no",
+    "- Preview date：not-applicable-with-reason: no changed preview.",
+    "- PM/Owner functional review：负责人确认当前范围没有新增用户可见行为。",
+    "- PM/Owner feedback：none",
+    "- PM/Owner preview approval words：批准",
+    "- PM/Owner preview approval date：2026-08-03",
+    "- Behavior or functional drift：none",
+    "- Missing coverage：none",
+    "- Experience status：completed",
+    "- Experience reason：当前范围没有用户可见行为变化。",
+    "- Product risk：none",
+    "- PM/Owner continuation：none",
     "",
   ].join("\n");
 }
@@ -85,6 +153,222 @@ function withDefinitionExperience(text) {
     "- Unresolved prototype blockers：none",
     "",
   ].join("\n");
+}
+
+function functionalBrief({ oneScreen = false } = {}) {
+  const locatorRows = oneScreen
+    ? ["| `COV-A` | `delivery.md#RULE-001` | 完成一个可见任务 | 单一任务状态 | 当前状态独立 | 功能任务证据 |"]
+    : [
+        "| `COV-A` | `delivery.md#RULE-001` | 提交所需输入 | 输入任务状态 | 输入后进入确认 | 输入功能证据 |",
+        "| `COV-B` | `delivery.md#SCN-001` | 查看确认结果 | 结果任务状态 | 接续输入结果 | 结果功能证据 |",
+      ];
+  const journeyRow = oneScreen
+    ? "| `JNY-A` | `COV-A` | `COV-A` | not applicable with reason | terminal result |"
+    : "| `JNY-A` | `COV-A` | `COV-B` | `COV-B` | terminal result |";
+  const screenRows = oneScreen
+    ? ["| `SCR-A` | `COV-A` | `JNY-A` | 完成单一任务 | 任意任务描述 | 已满足入口条件 | 必要信息与输入 | 标题、内容与动作区 | 提交、取消与恢复 | `delivery.md#RULE-001` |"]
+    : [
+        "| `SCR-A` | `COV-A` | `JNY-A` | 提交输入 | 自由输入任务 | 已满足入口条件 | 真实输入与说明 | 标题、输入与动作区 | 提交、取消与恢复 | `delivery.md#RULE-001` |",
+        "| `SCR-B` | `COV-B` | `JNY-A` | 核对结果 | 自由确认任务 | 已提交输入 | 结果摘要与状态 | 标题、摘要与后续动作区 | 完成、返回与恢复 | `delivery.md#SCN-001` |",
+      ];
+  const stateRows = oneScreen
+    ? ["| `STATE-A` | `SCR-A` | `COV-A` | 用户进入且可操作 | 显示必要输入和动作 | 提交可用且取消可用 | 等待用户动作 | terminal: 完成任务或取消恢复 | `delivery.md#RULE-001` |"]
+    : [
+        "| `STATE-A` | `SCR-A` | `COV-A` | 用户进入且可操作 | 显示真实输入和提交动作 | 提交可用且取消可用 | 等待输入 | 进入确认或恢复输入 | `delivery.md#RULE-001` |",
+        "| `STATE-B` | `SCR-B` | `COV-B` | 提交成功 | 显示结果摘要与状态 | 完成和返回可用 | 明确成功反馈 | terminal: 完成任务或返回输入 | `delivery.md#SCN-001` |",
+      ];
+  const stepRows = oneScreen
+    ? ["| `STEP-A` | `JNY-A` | `COV-A` | `STATE-A` | 完成当前任务 | 可见提交控件 | 必要输入有效 | 显示处理中与结果 | terminal: task complete | 失败时显示原因并允许恢复 | `delivery.md#SCN-001` |"]
+    : [
+        "| `STEP-A` | `JNY-A` | `COV-A`, `COV-B` | `STATE-A` | 提交输入 | 可见提交控件 | 必要输入有效 | 显示处理中反馈 | `STATE-B` | 失败时显示原因并保留输入 | `delivery.md#SCN-001` |",
+        "| `STEP-B` | `JNY-A` | `COV-B` | `STATE-B` | 完成确认 | 可见完成控件 | 结果已生成 | 显示完成反馈 | terminal: task complete | 可返回结果并重新进入 | `delivery.md#SCN-001` |",
+      ];
+  return [
+    "# Functional Brief",
+    "",
+    "## Prototype scope",
+    "",
+    "- Prototype question：验证批准任务能从进入走到结果与恢复。",
+    "- Functional representation detail：表达真实内容、语义控件、反馈、结果与恢复。",
+    "- Interaction coverage：覆盖 JNY-A 的输入、动作、结果、失败恢复与重进。",
+    "- Context / surface：任意桌面或移动表面，不限制页面名称。",
+    "- High-fidelity visual-design non-goals：不审批品牌、配色、字体、阴影或装饰美学。",
+    "- Functional contract applicability：required",
+    "",
+    "## Required coverage",
+    "",
+    "- Re-entry / retrieval：结果可从当前任务上下文再次进入，或在终态结束。",
+    "",
+    "## Locator map",
+    "",
+    "| Coverage ID | Markdown locator | Plain-language behavior | Required page/state | Runtime relationship | Expected artifact purpose |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...locatorRows,
+    "",
+    "## Journey closure",
+    "",
+    "| Journey ID | First entry and initiating path | Immediate result | Later re-entry / retrieval | Recovery or terminal path |",
+    "| --- | --- | --- | --- | --- |",
+    journeyRow,
+    "",
+    "## Screen inventory",
+    "",
+    "| Screen ID | Coverage IDs | Journey IDs | Primary job | Purpose / archetype | Entry conditions | Required content groups | Functional regions / hierarchy | Primary / secondary / recovery actions | Definition locators |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...screenRows,
+    "",
+    "## Material state matrix",
+    "",
+    "| State ID | Screen ID | Coverage IDs | Trigger / guard | Visible delta | Available / unavailable actions | Feedback / status | Recovery / next / re-entry | Definition locator |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...stateRows,
+    "",
+    "## Journey transition contract",
+    "",
+    "| Step ID | Journey ID | Coverage IDs | Source State | User intent | Visible semantic trigger / control | Guard / input | Immediate feedback | Destination / result | Failure / recovery | Definition locator |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...stepRows,
+    "",
+  ].join("\n");
+}
+
+function functionalManifest({ route = "pen", oneScreen = false, approval = "批准功能预览" } = {}) {
+  const unavailable = route === "unavailable";
+  const existingReference = route === "existing-reference";
+  const target = existingReference ? "existing-reference" : "pen";
+  const candidateArtifacts = existingReference
+    ? ["experience/brief.md", "experience/manifest.md", "experience/reference.png"]
+    : unavailable
+      ? ["experience/brief.md", "experience/manifest.md", "experience/terminal.md"]
+      : ["experience/brief.md", "experience/manifest.md", "experience/prototype.pen", "experience/read-back.md", "experience/previews/current.png"];
+  const screenRows = oneScreen
+    ? [["SCR-A", "node-zebra", "必要内容、输入、语义动作及恢复均有后代节点", unavailable ? "unverified" : "pass"]]
+    : [
+        ["SCR-A", "node-zebra", "共享 shell 下仍有任务专用输入、说明与提交控件", unavailable ? "unverified" : "pass"],
+        ["SCR-B", "node-orbit", "共享 shell 下仍有任务专用结果摘要、状态与完成控件", unavailable ? "unverified" : "pass"],
+      ];
+  const stateRows = oneScreen
+    ? [["STATE-A", "state-amber", "显示输入、动作、反馈与恢复", unavailable ? "unverified" : "pass"]]
+    : [
+        ["STATE-A", "state-amber", "输入可用、反馈与恢复完整", unavailable ? "unverified" : "pass"],
+        ["STATE-B", "state-cobalt", "结果、完成反馈与重进完整", unavailable ? "unverified" : "pass"],
+      ];
+  const stepRows = oneScreen
+    ? [["STEP-A", "state-amber/control-x", "feedback-x", "terminal/task-complete", "recovery-x", "not-applicable-with-reason: terminal flow.", unavailable ? "unverified" : "pass"]]
+    : [
+        ["STEP-A", "state-amber/control-x", "feedback-x", "state-cobalt", "recovery-x", "state-cobalt/re-entry", unavailable ? "unverified" : "pass"],
+        ["STEP-B", "state-cobalt/control-y", "feedback-y", "terminal/task-complete", "recovery-y", "state-cobalt/re-entry", unavailable ? "unverified" : "pass"],
+      ];
+  const coverageRows = oneScreen
+    ? [["COV-A", "delivery.md#RULE-001", "artifact#node-zebra", "single task", "当前状态独立", unavailable ? "unverified" : "synced"]]
+    : [
+        ["COV-A", "delivery.md#RULE-001", "artifact#node-zebra", "input task", "输入后进入确认", unavailable ? "unverified" : "synced"],
+        ["COV-B", "delivery.md#SCN-001", "artifact#node-orbit", "result task", "接续输入结果", unavailable ? "unverified" : "synced"],
+      ];
+  const approvedPath = oneScreen ? "`COV-A`" : "`COV-A`, `COV-B`";
+  const observedPath = unavailable ? "unavailable: Pen terminated before realization" : existingReference ? "reference#node-zebra -> reference#node-orbit" : "node-zebra -> control-x -> node-orbit";
+  const auditStatus = unavailable ? "unverified" : "pass";
+  const applicabilityReason = "not-applicable-with-reason: route does not use this Pen field.";
+  const lines = ["# Functional Manifest", ""];
+  for (const item of candidateArtifacts) lines.push(`- Candidate artifact：\`${item}\``);
+  lines.push(
+    "",
+    "- Brief：`experience/brief.md`",
+    `- Pen source：${existingReference || unavailable ? applicabilityReason : "`experience/prototype.pen`"}`,
+    `- Preview exports：${existingReference || unavailable ? applicabilityReason : "`experience/previews/current.png`"}`,
+    `- Read-back artifact：${existingReference || unavailable ? applicabilityReason : "`experience/read-back.md`"}`,
+    `- Reference / route evidence：${existingReference ? "`experience/reference.png`" : unavailable ? "`experience/terminal.md`" : "not-applicable-with-reason: direct Pen outputs are listed separately."}`,
+    `- Experience target：${target}`,
+    `- Direct route：${unavailable ? "unavailable" : existingReference ? "existing-reference" : "pen-interactive-direct"}`,
+    `- Pen CLI version：${existingReference ? applicabilityReason : "0.3.1"}`,
+    `- Live interactive help read：${existingReference ? applicabilityReason : "yes"}`,
+    "- Visual role：implementation-target",
+    "- Functional realization applicability：required",
+    "- Smallest scope / functional detail：JNY-A / required content, controls, feedback and recovery.",
+    "- Scope/fidelity approval：负责人批准功能合同。",
+    "",
+    "## Launch state",
+    "",
+    `- Process state：${unavailable ? "terminated" : existingReference ? applicabilityReason : "ready"}`,
+    `- Resumable handle retained：${unavailable ? "yes" : existingReference ? applicabilityReason : "yes"}`,
+    `- Initial prompt：${unavailable ? "seen" : existingReference ? applicabilityReason : "seen"}`,
+    `- Terminal result：${unavailable ? "Pen session ended with save error code 1." : existingReference ? applicabilityReason : "none"}`,
+    "",
+    "## Coverage map",
+    "",
+    "| Coverage ID | Markdown locator | Artifact locator | Preview/state | Runtime relationship | Sync result |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...coverageRows.map((row) => `| \`${row[0]}\` | \`${row[1]}\` | ${unavailable ? `unavailable: ${row[2]}` : row[2]} | ${row[3]} | ${row[4]} | ${row[5]} |`),
+    "",
+    "## Journey closure map",
+    "",
+    "| Journey ID | Approved Coverage path | Observed Pen/reference path | Closure result |",
+    "| --- | --- | --- | --- |",
+    `| \`JNY-A\` | ${approvedPath} | ${observedPath} | ${unavailable ? "unverified" : "closed"} |`,
+    "",
+    "## Screen realization",
+    "",
+    "| Screen ID | Artifact locator | Required regions / content / controls evidence | Realization result |",
+    "| --- | --- | --- | --- |",
+    ...screenRows.map((row) => `| \`${row[0]}\` | ${unavailable ? "unavailable: no artifact" : `prototype#${row[1]}`} | ${unavailable ? "unavailable: no descendant evidence after termination" : row[2]} | ${row[3]} |`),
+    "",
+    "## State realization",
+    "",
+    "| State ID | Artifact locator | Visible delta / feedback / actions / recovery evidence | Realization result |",
+    "| --- | --- | --- | --- |",
+    ...stateRows.map((row) => `| \`${row[0]}\` | ${unavailable ? "unavailable: no artifact" : `prototype#${row[1]}`} | ${unavailable ? "unavailable: no state evidence after termination" : row[2]} | ${row[3]} |`),
+    "",
+    "## Step transition realization",
+    "",
+    "| Step ID | Source / trigger locator | Feedback locator | Destination / result locator | Failure / recovery locator | Re-entry locator | Realization result |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
+    ...stepRows.map((row) => `| \`${row[0]}\` | ${unavailable ? "unavailable: no source" : row[1]} | ${unavailable ? "unavailable: no feedback" : row[2]} | ${unavailable ? "unavailable: no result" : row[3]} | ${unavailable ? "unavailable: no recovery" : row[4]} | ${unavailable ? "unavailable: no re-entry" : row[5]} | ${row[6]} |`),
+    "",
+    "## Functional audit",
+    "",
+    "| Audit item | Scope | Evidence | Result |",
+    "| --- | --- | --- | --- |",
+    `| \`inventory-completeness\` | all identities and obligations | ${unavailable ? "unavailable: no completed inventory audit" : "descendant read-back"} | ${auditStatus} |`,
+    `| \`transition-closure\` | all Step transitions | ${unavailable ? "unavailable: no completed transition audit" : "trigger and destination evidence"} | ${auditStatus} |`,
+    `| \`feedback-recovery\` | feedback and recovery | ${unavailable ? "unavailable: no completed feedback audit" : "visible status and recovery controls"} | ${auditStatus} |`,
+    `| \`functional-walkthrough\` | each Step goal and progress | ${unavailable ? "unavailable: no completed walkthrough" : "per-Step walkthrough"} | ${auditStatus} |`,
+    `| \`template-collapse\` | shared monochrome shell with arbitrary node names | ${unavailable ? "unavailable: no completed structure audit" : oneScreen ? "not-applicable to one Screen" : "different jobs keep task-specific content and controls"} | ${oneScreen && !unavailable ? "not-applicable-with-reason: only one Screen." : auditStatus} |`,
+    "",
+    "## Direct-operation evidence",
+    "",
+    `- App state / schema read：${existingReference ? applicabilityReason : unavailable ? "read before terminal save error" : "schema and app state read"}`,
+    "- Guidelines and document discovery：Brief and relevant live guidelines read.",
+    `- Direct mutation summary：${existingReference ? applicabilityReason : unavailable ? "Pen terminated before final realization." : "task-shaped functional structures created."}`,
+    `- Structural/layout read-back：${existingReference ? "reference structure inspected" : unavailable ? "unavailable after terminal error" : "descendant content, controls, connections and bounds read back."}`,
+    `- Coverage read-back：${unavailable ? "unverified after terminal error" : "all Coverage identities matched."}`,
+    `- Journey closure read-back：${unavailable ? "unverified after terminal error" : "JNY-A traced through feedback, result and recovery."}`,
+    `- Dangling affordances：${unavailable ? "not-applicable-with-reason: no final artifact." : "none"}`,
+    `- Re-entry / retrieval coverage：${unavailable ? "unverified after terminal error" : "JNY-A result and re-entry checked."}`,
+    `- Design gap sweep：${unavailable ? "Pen terminated; no no-gap claim made." : "all approved Journeys checked with no gaps."}`,
+    "- Unresolved design gaps：none",
+    `- Preview file result：${unavailable ? "unavailable: Pen terminated before preview." : existingReference ? applicabilityReason : "ready: experience/previews/current.png exists."}`,
+    `- Agent visual capability：${unavailable ? "not-applicable-with-reason: no preview exists." : "agent-visual"}`,
+    `- Preview presentation to Owner：${unavailable ? "unavailable" : "local-path"}`,
+    `- Save / clean exit：${unavailable ? "no" : existingReference ? applicabilityReason : "yes"}`,
+    "- External assets / provenance / delivery permission：not-applicable-with-reason: no external assets.",
+    "",
+    "## PM preview and Candidate result",
+    "",
+    `- Preview shown：${unavailable ? "no" : "yes"}`,
+    `- Preview date：${unavailable ? "not-applicable-with-reason: no preview exists." : "2026-08-03"}`,
+    `- PM/Owner functional review：${unavailable ? "not-applicable-with-reason: no preview exists after terminal failure." : "Owner confirmed tasks, states, controls, feedback, recovery and scope only."}`,
+    "- PM/Owner feedback：none",
+    `- PM/Owner preview approval words：${approval}`,
+    "- PM/Owner preview approval date：2026-08-03",
+    "- Behavior or functional drift：none",
+    `- Missing coverage：${unavailable ? "final functional artifact and preview are unavailable" : "none"}`,
+    `- Experience status：${unavailable ? "skipped-risk" : "completed"}`,
+    `- Experience reason：${unavailable ? "tool-unavailable" : "functional evidence complete"}`,
+    `- Product risk：${unavailable ? "development may misinterpret the intended interaction without a final artifact" : "none"}`,
+    `- PM/Owner continuation：${unavailable ? approval : "none"}`,
+    "",
+  );
+  return lines.join("\n");
 }
 
 async function seedDraft(root) {
@@ -211,33 +495,190 @@ test("approval gates reject unresolved Definition coverage and incomplete journe
   await writeFile(path.join(root, "draft", "experience", "brief.md"), "# Brief\n\n- Re-entry / retrieval：用户可再次查看结果。\n");
   const incompleteBrief = cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
   assert.equal(incompleteBrief.status, 2, JSON.stringify(incompleteBrief));
-  assert.equal(incompleteBrief.output.error.code, "experience-journey");
+  assert.equal(incompleteBrief.output.error.code, "experience-functional-contract");
   await writeFile(path.join(root, "draft", "experience", "brief.md"), validBrief.replace("| `JNY-001` | `PAGE-01` | `PAGE-01` | `PAGE-01` | 当前状态保持可见 |", "| `JNY-001` |  |  |  |  |"));
   const emptyJourney = cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
   assert.equal(emptyJourney.status, 2, JSON.stringify(emptyJourney));
-  assert.equal(emptyJourney.output.error.code, "experience-journey");
+  assert.equal(emptyJourney.output.error.code, "experience-functional-contract");
   await writeFile(path.join(root, "draft", "experience", "brief.md"), validBrief.replace("| `JNY-001` | `PAGE-01` |", "| `JNY-001` | PAGE-02 |"));
   const unknownCoverage = cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
   assert.equal(unknownCoverage.status, 2, JSON.stringify(unknownCoverage));
-  assert.equal(unknownCoverage.output.error.code, "experience-journey");
+  assert.equal(unknownCoverage.output.error.code, "experience-functional-contract");
   await writeFile(path.join(root, "draft", "experience", "brief.md"), validBrief);
+  await writeFile(path.join(root, "draft", "experience", "evidence.md"), "# Route evidence\n\nNo user-visible behavior changed.\n");
   assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
 
   await writeFile(path.join(root, "draft", "experience", "manifest.md"), "# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n");
-  const incompleteManifest = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
+  const incompleteManifest = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
   assert.equal(incompleteManifest.status, 2, JSON.stringify(incompleteManifest));
-  assert.equal(incompleteManifest.output.error.code, "experience-journey-evidence");
+  assert.equal(incompleteManifest.output.error.code, "experience-functional-evidence");
   await writeFile(path.join(root, "draft", "experience", "manifest.md"), withJourneyEvidence("# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n").replaceAll("JNY-001", "JNY-002"));
-  const mismatchedJourney = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
+  const mismatchedJourney = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
   assert.equal(mismatchedJourney.status, 2, JSON.stringify(mismatchedJourney));
-  assert.equal(mismatchedJourney.output.error.code, "experience-journey-evidence");
-  const wrongCoveragePath = withJourneyEvidence("# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n").replace("| `JNY-001` | `PAGE-01` | existing reference `PAGE-01` | closed |", "| `JNY-001` | PAGE-02 | existing reference `PAGE-01` | closed |");
+  assert.equal(mismatchedJourney.output.error.code, "experience-functional-evidence");
+  const wrongCoveragePath = withJourneyEvidence("# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n").replace("| `JNY-001` | `PAGE-01` | not-applicable-with-reason: no changed visible path. | not-applicable-with-reason: no changed visible path. |", "| `JNY-001` | PAGE-02 | not-applicable-with-reason: no changed visible path. | not-applicable-with-reason: no changed visible path. |");
   await writeFile(path.join(root, "draft", "experience", "manifest.md"), wrongCoveragePath);
-  const mismatchedCoverage = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
+  const mismatchedCoverage = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
   assert.equal(mismatchedCoverage.status, 2, JSON.stringify(mismatchedCoverage));
-  assert.equal(mismatchedCoverage.output.error.code, "experience-journey-evidence");
-  await writeFile(path.join(root, "draft", "experience", "manifest.md"), withJourneyEvidence("# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n"));
-  assert.equal(cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
+  assert.equal(mismatchedCoverage.output.error.code, "experience-functional-evidence");
+  const validNotNeededManifest = withJourneyEvidence("# Manifest\n\n- Candidate artifact：`experience/brief.md`\n- Candidate artifact：`experience/manifest.md`\n");
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), validNotNeededManifest.replace("`experience/evidence.md`", "`experience/brief.md`"));
+  const selfReferencedRoute = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
+  assert.equal(selfReferencedRoute.status, 2, JSON.stringify(selfReferencedRoute));
+  assert.equal(selfReferencedRoute.output.error.code, "experience-functional-evidence");
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), validNotNeededManifest.replace("- Functional realization applicability：not-applicable-with-reason: current scope has no visible behavior change.", "- Functional realization applicability：required"));
+  const falseNotNeededSuccess = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
+  assert.equal(falseNotNeededSuccess.status, 2, JSON.stringify(falseNotNeededSuccess));
+  assert.equal(falseNotNeededSuccess.output.error.code, "experience-functional-evidence");
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), validNotNeededManifest);
+  const approvedPreview = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]);
+  assert.equal(approvedPreview.status, 0, JSON.stringify(approvedPreview));
+});
+
+test("typed functional Brief rejects identity, ownership, destination, and missing-obligation drift", async (t) => {
+  const root = await newRoot(t, "typed-brief-");
+  assert.equal(cli(["init", "--root", root, "--delivery-id", "DEL-typed-brief", "--title", "Typed Brief", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+  await mkdir(path.join(root, "draft", "experience"), { recursive: true });
+  await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery\n\n- RULE-001: 用户完成任务。\n- SCN-001: 用户看见结果并可恢复。\n"));
+  assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
+  const variants = [
+    functionalBrief().replace("| `SCR-B` | `COV-B`", "| `SCR-A` | `COV-B`"),
+    functionalBrief().replace("| `SCR-B` | `COV-B`", "| `SCREEN-B` | `COV-B`"),
+    functionalBrief().replace("| `SCR-A` | `COV-A` |", "| `SCR-A` | `COV-A`, `COV-A` |"),
+    functionalBrief().replace("| `STATE-A` | `SCR-A`", "| `STATE-A` | `SCR-X`"),
+    functionalBrief().replace("| `STATE-B` | 失败时显示原因并保留输入", "| `STATE-X` | 失败时显示原因并保留输入"),
+    functionalBrief().replace("| 已满足入口条件 | 真实输入与说明 |", "| 已满足入口条件 | none |"),
+    functionalBrief().replace("| 等待输入 | 进入确认或恢复输入 |", "| unverified | 进入确认或恢复输入 |"),
+    functionalBrief().replace("| 提交输入 | 可见提交控件 |", "| 提交输入 | none |"),
+    functionalBrief().replace("| 失败时显示原因并保留输入 |", "| none |"),
+    `${functionalBrief().replace("| 已满足入口条件 | 真实输入与说明 |", "| 已满足入口条件 |  |")}\n\n100 frames and many matching labels cannot replace required content.\n`,
+  ];
+  for (const brief of variants) {
+    await writeFile(path.join(root, "draft", "experience", "brief.md"), brief);
+    const result = cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准功能合同", "--experience-route", "pen", "--actor-role", "product-owner"]);
+    assert.equal(result.status, 2, JSON.stringify(result));
+    assert.equal(result.output.error.code, "experience-functional-contract");
+    assert.equal((await readdir(path.join(root, "events"))).length, 2);
+  }
+  await writeFile(path.join(root, "draft", "experience", "brief.md"), functionalBrief());
+  const valid = cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准功能合同", "--experience-route", "pen", "--actor-role", "product-owner"]);
+  assert.equal(valid.status, 0, JSON.stringify(valid));
+});
+
+test("Pen preview gate rejects exact no-path contradiction and cross-field drift before accepting complete evidence", async (t) => {
+  const root = await newRoot(t, "typed-pen-");
+  assert.equal(cli(["init", "--root", root, "--delivery-id", "DEL-typed-pen", "--title", "Typed Pen", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+  await mkdir(path.join(root, "draft", "experience", "previews"), { recursive: true });
+  await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery\n\n- RULE-001: 用户提交输入。\n- SCN-001: 用户查看结果并恢复。\n"));
+  assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(root, "draft", "experience", "brief.md"), functionalBrief());
+  assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准功能合同", "--experience-route", "pen", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(root, "draft", "experience", "prototype.pen"), "deterministic fixture, not a live Pen file\n");
+  await writeFile(path.join(root, "draft", "experience", "read-back.md"), "# Descendant read-back\n\ncontent, controls, feedback and transitions verified\n");
+  await writeFile(path.join(root, "draft", "experience", "previews", "current.png"), "deterministic fixture\n");
+  const validManifest = functionalManifest();
+  const contradictions = [
+    validManifest.replace("node-zebra -> control-x -> node-orbit | closed", "none | unverified"),
+    validManifest.replace("| `SCR-A` | prototype#node-zebra", "| `SCR-X` | prototype#node-zebra"),
+    validManifest.replace("共享 shell 下仍有任务专用输入、说明与提交控件 | pass", "none | pass"),
+    validManifest.replace("all identities and obligations | descendant read-back | pass", "all identities and obligations | none | pass"),
+    validManifest.replace("- Process state：ready", "- Process state：terminated"),
+    validManifest.replace("- Read-back artifact：`experience/read-back.md`", "- Read-back artifact：`experience/manifest.md`"),
+    validManifest.replace("- Preview file result：ready: experience/previews/current.png exists.", "- Preview file result：ready: experience/previews/unbound.png exists."),
+    validManifest.replace("- Missing coverage：none", "- Missing coverage：100 frames exist, therefore none"),
+    validManifest.replace("- PM/Owner preview approval words：批准功能预览", "- PM/Owner preview approval words：different words"),
+    validManifest.replace("- PM/Owner preview approval date：2026-08-03", "- PM/Owner preview approval date：none"),
+  ];
+  const args = [
+    "approve-preview", "--root", root, "--expect-revision", "3",
+    "--artifact", "draft/experience/manifest.md", "--artifact", "draft/experience/prototype.pen",
+    "--artifact", "draft/experience/read-back.md", "--artifact", "draft/experience/previews/current.png",
+    "--evidence", "批准功能预览", "--experience-route", "pen", "--actor-role", "product-owner",
+  ];
+  for (const manifest of contradictions) {
+    await writeFile(path.join(root, "draft", "experience", "manifest.md"), manifest);
+    const result = cli(args);
+    assert.equal(result.status, 2, JSON.stringify(result));
+    assert.equal(result.output.error.code, "experience-functional-evidence");
+    assert.equal((await readdir(path.join(root, "events"))).length, 3);
+  }
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), validManifest);
+  const missingPreviewBinding = cli([
+    "approve-preview", "--root", root, "--expect-revision", "3",
+    "--artifact", "draft/experience/manifest.md", "--artifact", "draft/experience/prototype.pen",
+    "--artifact", "draft/experience/read-back.md", "--evidence", "批准功能预览",
+    "--experience-route", "pen", "--actor-role", "product-owner",
+  ]);
+  assert.equal(missingPreviewBinding.status, 2, JSON.stringify(missingPreviewBinding));
+  assert.equal(missingPreviewBinding.output.error.code, "experience-functional-evidence");
+  const accepted = cli(args);
+  assert.equal(accepted.status, 0, JSON.stringify(accepted));
+});
+
+test("route-aware Experience validation accepts existing-reference and explicit terminal-unavailable contracts", async (t) => {
+  const cases = [
+    { name: "reference", route: "existing-reference", manifestRoute: "existing-reference", evidence: "批准功能预览", artifact: "reference.png" },
+    { name: "unavailable", route: "pen", manifestRoute: "unavailable", evidence: "知悉工具终止并继续", artifact: "terminal.md" },
+  ];
+  for (const item of cases) {
+    const root = await newRoot(t, `route-${item.name}-`);
+    assert.equal(cli(["init", "--root", root, "--delivery-id", `DEL-${item.name}`, "--title", item.name, "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+    await mkdir(path.join(root, "draft", "experience"), { recursive: true });
+    await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery\n\n- RULE-001: 用户提交输入。\n- SCN-001: 用户查看结果并恢复。\n"));
+    assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
+    await writeFile(path.join(root, "draft", "experience", "brief.md"), functionalBrief());
+    assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准功能合同", "--experience-route", item.route, "--actor-role", "product-owner"]).status, 0);
+    await writeFile(path.join(root, "draft", "experience", item.artifact), `${item.name} deterministic evidence\n`);
+    const validManifest = functionalManifest({ route: item.manifestRoute, approval: item.evidence });
+    const args = [
+      "approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md",
+      "--artifact", `draft/experience/${item.artifact}`, "--evidence", item.evidence,
+      "--experience-route", item.route, "--actor-role", "product-owner",
+    ];
+    const selfReferenced = validManifest.replace(`- Reference / route evidence：\`experience/${item.artifact}\``, "- Reference / route evidence：`experience/manifest.md`");
+    await writeFile(path.join(root, "draft", "experience", "manifest.md"), selfReferenced);
+    const rejectedSelfReference = cli(args);
+    assert.equal(rejectedSelfReference.status, 2, JSON.stringify(rejectedSelfReference));
+    assert.equal(rejectedSelfReference.output.error.code, "experience-functional-evidence");
+    if (item.manifestRoute === "unavailable") {
+      await writeFile(path.join(root, "draft", "experience", "manifest.md"), validManifest.replace("- PM/Owner continuation：知悉工具终止并继续", "- PM/Owner continuation：none"));
+      const rejectedContinuation = cli(args);
+      assert.equal(rejectedContinuation.status, 2, JSON.stringify(rejectedContinuation));
+      assert.equal(rejectedContinuation.output.error.code, "experience-functional-evidence");
+      await writeFile(path.join(root, "draft", "experience", "manifest.md"), validManifest.replace("unavailable: no descendant evidence after termination", "claimed completed descendant evidence"));
+      const rejectedFabricatedRealization = cli(args);
+      assert.equal(rejectedFabricatedRealization.status, 2, JSON.stringify(rejectedFabricatedRealization));
+      assert.equal(rejectedFabricatedRealization.output.error.code, "experience-functional-evidence");
+      await writeFile(path.join(root, "draft", "experience", "manifest.md"), validManifest.replace("- Preview shown：no", "- Preview shown：yes"));
+      const rejectedNormalSuccess = cli(args);
+      assert.equal(rejectedNormalSuccess.status, 2, JSON.stringify(rejectedNormalSuccess));
+      assert.equal(rejectedNormalSuccess.output.error.code, "experience-functional-evidence");
+    }
+    await writeFile(path.join(root, "draft", "experience", "manifest.md"), validManifest);
+    const result = cli(args);
+    assert.equal(result.status, 0, JSON.stringify(result));
+  }
+});
+
+test("one-Screen arbitrary-name monochrome functional evidence passes without visual heuristics", async (t) => {
+  const root = await newRoot(t, "anti-overfit-");
+  assert.equal(cli(["init", "--root", root, "--delivery-id", "DEL-anti-overfit", "--title", "Anti overfit", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+  await mkdir(path.join(root, "draft", "experience", "previews"), { recursive: true });
+  await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery\n\n- RULE-001: 用户完成单一任务。\n- SCN-001: 用户遇到失败时恢复。\n"));
+  assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(root, "draft", "experience", "brief.md"), functionalBrief({ oneScreen: true }));
+  assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准功能合同", "--experience-route", "pen", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(root, "draft", "experience", "prototype.pen"), "arbitrary nodes: zebra amber x; monochrome\n");
+  await writeFile(path.join(root, "draft", "experience", "read-back.md"), "# Read-back\n\nOne complete Screen with content, control, feedback and recovery.\n");
+  await writeFile(path.join(root, "draft", "experience", "previews", "current.png"), "monochrome deterministic fixture\n");
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), functionalManifest({ oneScreen: true }));
+  const accepted = cli([
+    "approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md",
+    "--artifact", "draft/experience/prototype.pen", "--artifact", "draft/experience/read-back.md",
+    "--artifact", "draft/experience/previews/current.png", "--evidence", "批准功能预览",
+    "--experience-route", "pen", "--actor-role", "product-owner",
+  ]);
+  assert.equal(accepted.status, 0, JSON.stringify(accepted));
 });
 
 test("pre-Candidate feedback opens a bounded Draft revision without Finding semantics", async (t) => {
@@ -330,7 +771,8 @@ async function throughCandidate(t, { findings = [] } = {}) {
   await seedDraft(root);
   assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准当前定义", "--actor-role", "product-owner", "--actor-label", "负责人"]).status, 0);
   assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准当前 Brief", "--experience-route", "not-needed", "--actor-role", "product-owner", "--actor-label", "负责人"]).status, 0);
-  assert.equal(cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "确认无需新增体验产物", "--experience-route", "not-needed", "--actor-role", "product-owner", "--actor-label", "负责人"]).status, 0);
+  const approvedPreview = cli(["approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner", "--actor-label", "负责人"]);
+  assert.equal(approvedPreview.status, 0, JSON.stringify(approvedPreview));
   const frozen = cli(["freeze-candidate", "--root", root, "--expect-revision", "4", "--candidate-id", "CAND-integration-r1"]);
   assert.equal(frozen.status, 0, JSON.stringify(frozen));
   await writeFile(path.join(root, "reviews", "review-01.md"), `# Review\n\n${findings.join("\n")}\n`);
@@ -657,7 +1099,7 @@ test("Finding correction accepts expected Draft drift and invalidates prior bind
   assert.equal(cli(["record-brainstorm-patch", "--root", root, "--expect-revision", "7", "--patch", "draft/decision-patch.md", "--base-revision", "2", "--decision-locator", "delivery.md#DEC-001"]).status, 0);
   assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "8", "--artifact", "draft/delivery.md", "--evidence", "重新批准定义", "--actor-role", "product-owner"]).status, 0);
   assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "9", "--artifact", "draft/experience/brief.md", "--evidence", "重新批准 Brief", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
-  assert.equal(cli(["approve-preview", "--root", root, "--expect-revision", "10", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "重新批准体验证据", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
+  assert.equal(cli(["approve-preview", "--root", root, "--expect-revision", "10", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
   const reusedCandidateCase = cli(["freeze-candidate", "--root", root, "--expect-revision", "11", "--candidate-id", "cand-INTEGRATION-R1"]);
   assert.equal(reusedCandidateCase.status, 2);
   assert.equal(reusedCandidateCase.output.error.code, "identity-reuse");
@@ -840,7 +1282,7 @@ test("approved CHG round archives the prior delivery evidence, resets receipt, a
   await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery revision 2\n\n- RULE-001: 用户可以查看变更后的状态。\n"));
   assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "11", "--artifact", "draft/delivery.md", "--evidence", "批准变更后的定义", "--actor-role", "product-owner"]).status, 0);
   assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "12", "--artifact", "draft/experience/brief.md", "--evidence", "批准变更 Brief", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
-  assert.equal(cli(["approve-preview", "--root", root, "--expect-revision", "13", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准变更体验证据", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
+  assert.equal(cli(["approve-preview", "--root", root, "--expect-revision", "13", "--artifact", "draft/experience/evidence.md", "--artifact", "draft/experience/manifest.md", "--evidence", "批准", "--experience-route", "not-needed", "--actor-role", "product-owner"]).status, 0);
   assert.equal(cli(["freeze-candidate", "--root", root, "--expect-revision", "14", "--candidate-id", "CAND-integration-r2"]).status, 0);
   const candidateManifest = JSON.parse(await readFile(path.join(root, "candidates", "CAND-integration-r2", "MANIFEST.json"), "utf8"));
   assert.equal(candidateManifest.source.change_id, "CHG-integration-001");
@@ -894,6 +1336,22 @@ test("init refuses a non-empty unsupported-format root", async (t) => {
   assert.equal(result.output.error.code, "root-not-empty");
   assert.deepEqual(await readdir(root), ["START-HERE.md"]);
   assert.equal(await readFile(path.join(root, "START-HERE.md"), "utf8"), "legacy\n");
+});
+
+test("schema/runtime 3.x stored events fail closed under the single 4.0.0 contract", async (t) => {
+  for (const [field, value, originalCode] of [["schema_version", 3, "schema-version"], ["runtime_version", "3.0.0", "runtime-version"]]) {
+    const root = await newRoot(t, `old-${field}-`);
+    const deliveryId = `DEL-old-${field.replaceAll("_", "-")}`;
+    assert.equal(cli(["init", "--root", root, "--delivery-id", deliveryId, "--title", "Old format", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+    const eventPath = path.join(root, "events", "000001-created.json");
+    const event = JSON.parse(await readFile(eventPath, "utf8"));
+    event[field] = value;
+    await writeFile(eventPath, `${JSON.stringify(event, null, 2)}\n`);
+    const result = cli(["status", "--root", root]);
+    assert.equal(result.status, 5, JSON.stringify(result));
+    assert.equal(result.output.error.code, "stored-event-invalid");
+    assert.equal(result.output.error.details.original_code, originalCode);
+  }
 });
 
 test("doctor checks only the portable runtime boundary and never probes Pen", () => {

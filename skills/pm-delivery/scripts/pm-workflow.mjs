@@ -19,8 +19,8 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-export const RUNTIME_VERSION = "3.0.0";
-export const SCHEMA_VERSION = 3;
+export const RUNTIME_VERSION = "4.0.0";
+export const SCHEMA_VERSION = 4;
 export const MINIMUM_NODE_MAJOR = 20;
 
 export const EXIT = Object.freeze({
@@ -609,7 +609,7 @@ export function reduceEvent(previousState, event) {
       state.status = "blocked";
       state.blocker = event.payload.experience_route === "pen" ? "等待 Pen 保存、回读、导出并展示预览" : "等待负责人确认当前 Experience 证据";
       state.next_skill = "pm-experience";
-      state.next_action = event.payload.experience_route === "pen" ? "按本机实时 Pen interactive 帮助完成最小原型并展示预览" : "展示路线证据并取得明确确认";
+      state.next_action = event.payload.experience_route === "pen" ? "按批准的 functional wireflow Brief 直接使用 Pen 完成功能原型、回读并展示预览" : "展示独立路线证据并取得明确确认";
       break;
     }
     case "preview-approved": {
@@ -1346,89 +1346,480 @@ async function validateDefinitionExperienceRequirements(root, artifacts) {
 }
 
 function markdownSection(text, heading) {
-  const headingMatch = text.match(new RegExp(`^## ${heading}\\s*$`, "mu"));
+  const headingMatch = text.match(new RegExp(`^## ${escapeRegExp(heading)}\\s*$`, "mu"));
   if (!headingMatch) return null;
   const afterHeading = text.slice(headingMatch.index + headingMatch[0].length);
   const nextHeading = afterHeading.search(/^##\s/mu);
   return nextHeading === -1 ? afterHeading : afterHeading.slice(0, nextHeading);
 }
 
-function requireResolvedJourneyRow(text, heading, label, code, requiredCellCount) {
-  const section = markdownSection(text, heading) ?? "";
-  const rows = section.split(/\r?\n/u).filter((line) => /^\|\s*`?JNY-[A-Za-z0-9-]+`?\s*\|/u.test(line));
-  const incomplete = rows.some((row) => {
-    const cells = markdownTableCells(row);
-    return cells.length < requiredCellCount || cells.slice(0, requiredCellCount).some((cell) => isUnresolvedApprovalValue(cell));
-  });
-  if (!rows.length || incomplete) fail(`${label} 缺少已完成的 Journey row。`, { code });
-  const ids = journeyIds(rows);
-  if (new Set(ids).size !== ids.length) fail(`${label} 含重复 Journey ID。`, { code });
-  return rows;
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
 function markdownTableCells(row) {
   const cells = row.split("|").slice(1);
   if (cells.at(-1)?.trim() === "") cells.pop();
-  return cells.map((cell) => cell.trim());
+  return cells.map((cell) => cleanMarkdownValue(cell));
 }
 
-function firstColumnIds(text) {
-  return [...text.matchAll(/^\|\s*`?([A-Z][A-Z0-9-]+)`?\s*\|/gmu)].map((match) => match[1]);
+function cleanMarkdownValue(value) {
+  const trimmed = value.trim();
+  const code = trimmed.match(/^`([^`]*)`$/u);
+  return (code?.[1] ?? trimmed).trim();
 }
 
-function journeyIds(rows) {
-  return rows.map((row) => row.match(/^\|\s*`?(JNY-[A-Za-z0-9-]+)`?\s*\|/u)?.[1]).filter(Boolean);
+function markdownField(text, label, code) {
+  const match = text.match(new RegExp(`^- ${escapeRegExp(label)}[：:]\\s*(.+)$`, "mu"));
+  const value = cleanMarkdownValue(match?.[1] ?? "");
+  if (!match || isUnresolvedApprovalValue(value)) fail(`${label} 缺失或仍是占位内容。`, { code });
+  return value;
+}
+
+function structuredIds(value) {
+  return [...value.matchAll(/\b([A-Z][A-Z0-9]*-[A-Z0-9-]+)\b/gu)].map((match) => match[1]);
 }
 
 function orderedUniqueStructuredIds(value) {
-  const ids = [...value.matchAll(/\b([A-Z][A-Z0-9]*-[A-Z0-9-]+)\b/gu)].map((match) => match[1]).filter((id) => !id.startsWith("JNY-"));
+  const ids = structuredIds(value);
   return ids.filter((id, index) => ids.indexOf(id) === index);
 }
 
-async function validateBriefJourneyContract(root, artifacts) {
-  if (!artifacts.some((artifact) => artifact.path === "draft/experience/brief.md")) return;
-  const text = await readArtifactText(root, "draft/experience/brief.md");
-  requireResolvedMarkdownField(text, /^- Re-entry \/ retrieval[：:]\s*(.+)$/mu, "Experience Brief re-entry/retrieval", "experience-journey");
-  const rows = requireResolvedJourneyRow(text, "Journey closure", "Experience Brief journey closure", "experience-journey", 5);
-  const locatorMap = markdownSection(text, "Locator map") ?? "";
-  const coverageList = firstColumnIds(locatorMap);
-  const coverageIds = new Set(coverageList);
-  if (coverageIds.size !== coverageList.length) fail("Experience Brief Locator map 含重复 Coverage ID。", { code: "experience-journey" });
-  for (const row of rows) {
-    for (const match of row.matchAll(/\b([A-Z][A-Z0-9]*-[A-Z0-9-]+)\b/gu)) {
-      if (!match[1].startsWith("JNY-") && !coverageIds.has(match[1])) {
-        fail(`Experience Brief Journey 引用了未定义的 Coverage ID：${match[1]}`, { code: "experience-journey" });
-      }
-    }
+function isReasonedNotApplicable(value) {
+  return /^not-applicable-with-reason:\s*\S.+$/iu.test(cleanMarkdownValue(value));
+}
+
+function isNoneValue(value) {
+  return cleanMarkdownValue(value).toLowerCase() === "none";
+}
+
+function assertExactValue(value, expected, label, code) {
+  if (cleanMarkdownValue(value).toLowerCase() !== expected.toLowerCase()) fail(`${label} 必须是 ${expected}。`, { code });
+}
+
+function assertReasonedNotApplicable(value, label, code) {
+  if (!isReasonedNotApplicable(value)) fail(`${label} 必须给出 not-applicable-with-reason。`, { code });
+}
+
+function assertConcreteValue(value, label, code, { allowReasonedNotApplicable = false } = {}) {
+  const cleaned = cleanMarkdownValue(value);
+  const reasonedNotApplicable = isReasonedNotApplicable(cleaned);
+  const rejected = /^(?:none|pending|unverified|gap|contradiction|unavailable)$/iu.test(cleaned) || isUnresolvedApprovalValue(cleaned);
+  if ((rejected || reasonedNotApplicable) && !(allowReasonedNotApplicable && reasonedNotApplicable)) fail(`${label} 缺少具体证据。`, { code });
+}
+
+function assertUnavailableValue(value, label, code) {
+  const cleaned = cleanMarkdownValue(value);
+  if (cleaned.toLowerCase() !== "unverified" && !/^unavailable:\s*\S.+$/iu.test(cleaned) && !isReasonedNotApplicable(cleaned)) {
+    fail(`${label} 必须明确记录 unavailable、unverified 或 reasoned not-applicable。`, { code });
   }
 }
 
-async function validateManifestJourneyEvidence(root, artifacts) {
-  if (!artifacts.some((artifact) => artifact.path === "draft/experience/manifest.md")) return;
-  const text = await readArtifactText(root, "draft/experience/manifest.md");
-  const manifestRows = requireResolvedJourneyRow(text, "Journey closure map", "Experience manifest journey closure", "experience-journey-evidence", 4);
-  const brief = await readArtifactText(root, "draft/experience/brief.md");
-  const briefRows = requireResolvedJourneyRow(brief, "Journey closure", "Approved Experience Brief journey closure", "experience-journey-evidence", 5);
-  const approvedIds = [...new Set(journeyIds(briefRows))].sort();
-  const observedIds = [...new Set(journeyIds(manifestRows))].sort();
-  if (stableJson(approvedIds) !== stableJson(observedIds)) fail("Experience manifest Journey IDs 与已批准 Brief 不一致。", { code: "experience-journey-evidence" });
-  const briefSequences = new Map(briefRows.map((row) => {
-    const cells = markdownTableCells(row);
-    return [journeyIds([row])[0], orderedUniqueStructuredIds(cells.slice(1).join(" "))];
-  }));
-  for (const row of manifestRows) {
-    const cells = markdownTableCells(row);
-    const id = journeyIds([row])[0];
-    const observedSequence = orderedUniqueStructuredIds(cells[1] ?? "");
-    if (stableJson(briefSequences.get(id)) !== stableJson(observedSequence)) {
-      fail(`Experience manifest ${id} 的 approved Coverage path 与 Brief 不一致。`, { code: "experience-journey-evidence" });
+function parseTableRows(text, heading, idPattern, cellCount, label, code, { required = true } = {}) {
+  const section = markdownSection(text, heading);
+  if (section === null) {
+    if (required) fail(`${label} 缺少 ${heading} section。`, { code });
+    return [];
+  }
+  const rows = [];
+  for (const line of section.split(/\r?\n/u)) {
+    if (!line.trimStart().startsWith("|")) continue;
+    const cells = markdownTableCells(line);
+    const first = cells[0] ?? "";
+    if (/^(?:(?:Coverage|Journey|Screen|State|Step) ID|Audit item)$/iu.test(first) || /^:?-{3,}:?$/u.test(first)) continue;
+    if (!idPattern.test(first)) fail(`${label} 含无效或非预期 ID：${first || "empty"}。`, { code });
+    if (cells.length !== cellCount || cells.some((cell) => isUnresolvedApprovalValue(cell))) {
+      fail(`${label} 的 ${cells[0] || "unknown"} row 不完整。`, { code });
+    }
+    rows.push({ id: cells[0], cells });
+  }
+  if (required && !rows.length) fail(`${label} 缺少已完成 row。`, { code });
+  const ids = rows.map((row) => row.id);
+  if (new Set(ids).size !== ids.length) fail(`${label} 含重复 ID。`, { code });
+  return rows;
+}
+
+function parseCoverageRows(text, heading, label, code) {
+  const rows = parseTableRows(text, heading, /^[A-Z][A-Z0-9]*-[A-Z0-9-]+$/u, 6, label, code);
+  const reserved = rows.filter((row) => /^(?:JNY|SCR|STATE|STEP)-/u.test(row.id));
+  if (reserved.length) fail(`${label} 使用了保留的功能 ID 前缀。`, { code });
+  return rows;
+}
+
+function parseJourneyRows(text, heading, label, code) {
+  return parseTableRows(text, heading, /^JNY-[A-Z0-9-]+$/u, heading === "Journey closure" ? 5 : 4, label, code);
+}
+
+function exactIdSet(actualRows, expectedIds, label, code) {
+  const actual = actualRows.map((row) => row.id).sort();
+  const expected = [...expectedIds].sort();
+  if (stableJson(actual) !== stableJson(expected)) fail(`${label} ID 集合与已批准 Brief 不一致。`, { code, details: { expected, actual } });
+}
+
+function referencedIds(value, allowedIds, label, code, { exactlyOne = false } = {}) {
+  const ids = structuredIds(value);
+  if (!ids.length || new Set(ids).size !== ids.length || ids.some((id) => !allowedIds.has(id)) || (exactlyOne && ids.length !== 1)) {
+    fail(`${label} 含缺失、重复或未声明的 ID 引用。`, { code, details: { value, allowed: [...allowedIds].sort() } });
+  }
+  return ids;
+}
+
+function parseBriefContract(text, route, code = "experience-functional-contract") {
+  for (const label of [
+    "Prototype question",
+    "Functional representation detail",
+    "Interaction coverage",
+    "Context / surface",
+    "High-fidelity visual-design non-goals",
+    "Re-entry / retrieval",
+  ]) markdownField(text, label, code);
+
+  const applicability = markdownField(text, "Functional contract applicability", code);
+  const coverageRows = parseCoverageRows(text, "Locator map", "Experience Brief Coverage", code);
+  for (const row of coverageRows) {
+    for (const index of [1, 2, 3, 4]) assertConcreteValue(row.cells[index], `${row.id} Coverage contract`, code);
+    assertConcreteValue(row.cells[5], `${row.id} expected artifact purpose`, code, { allowReasonedNotApplicable: route === "not-needed" });
+  }
+  const coverageIds = new Set(coverageRows.map((row) => row.id));
+  const journeyRows = parseJourneyRows(text, "Journey closure", "Experience Brief Journey", code);
+  const journeyIds = new Set(journeyRows.map((row) => row.id));
+  const journeySequences = new Map();
+  for (const row of journeyRows) {
+    for (const value of row.cells.slice(1)) assertConcreteValue(value, `${row.id} Journey contract`, code, { allowReasonedNotApplicable: true });
+    const sequence = orderedUniqueStructuredIds(row.cells.slice(1).join(" "));
+    if (!sequence.length || sequence.some((id) => !coverageIds.has(id))) {
+      fail(`Experience Brief ${row.id} 引用了未定义的 Coverage ID。`, { code });
+    }
+    journeySequences.set(row.id, sequence);
+  }
+
+  const screenRows = parseTableRows(text, "Screen inventory", /^SCR-[A-Z0-9-]+$/u, 10, "Experience Brief Screen inventory", code, { required: false });
+  const stateRows = parseTableRows(text, "Material state matrix", /^STATE-[A-Z0-9-]+$/u, 9, "Experience Brief Material state matrix", code, { required: false });
+  const stepRows = parseTableRows(text, "Journey transition contract", /^STEP-[A-Z0-9-]+$/u, 11, "Experience Brief Journey transition contract", code, { required: false });
+
+  if (route === "not-needed") {
+    assertReasonedNotApplicable(applicability, "Functional contract applicability", code);
+    if (screenRows.length || stateRows.length || stepRows.length) fail("not-needed route 不得声明 Screen/State/Step 实现合同。", { code });
+    return { coverageRows, coverageIds, journeyRows, journeyIds, journeySequences, screenRows, stateRows, stepRows };
+  }
+
+  assertExactValue(applicability, "required", "Functional contract applicability", code);
+  if (!screenRows.length || !stateRows.length || !stepRows.length) fail("可见 Experience route 必须完成 Screen/State/Step 合同。", { code });
+  const screenIds = new Set(screenRows.map((row) => row.id));
+  const stateIds = new Set(stateRows.map((row) => row.id));
+  const stepIds = new Set(stepRows.map((row) => row.id));
+  const screenCoverage = new Set();
+  const stateCoverage = new Set();
+  const stepCoverage = new Set();
+  const screenJourneys = new Set();
+  for (const row of screenRows) {
+    for (const id of referencedIds(row.cells[1], coverageIds, `${row.id} Coverage IDs`, code)) screenCoverage.add(id);
+    for (const id of referencedIds(row.cells[2], journeyIds, `${row.id} Journey IDs`, code)) screenJourneys.add(id);
+    for (const value of row.cells.slice(3)) assertConcreteValue(value, `${row.id} Screen obligation`, code);
+  }
+  const stateOwners = new Set();
+  for (const row of stateRows) {
+    const [owner] = referencedIds(row.cells[1], screenIds, `${row.id} owner Screen ID`, code, { exactlyOne: true });
+    stateOwners.add(owner);
+    for (const id of referencedIds(row.cells[2], coverageIds, `${row.id} Coverage IDs`, code)) stateCoverage.add(id);
+    for (const value of row.cells.slice(3)) assertConcreteValue(value, `${row.id} State obligation`, code);
+  }
+  const stepJourneys = new Set();
+  for (const row of stepRows) {
+    const [journeyId] = referencedIds(row.cells[1], journeyIds, `${row.id} Journey ID`, code, { exactlyOne: true });
+    stepJourneys.add(journeyId);
+    const coverage = referencedIds(row.cells[2], coverageIds, `${row.id} Coverage IDs`, code);
+    for (const id of coverage) {
+      stepCoverage.add(id);
+      if (!journeySequences.get(journeyId).includes(id)) fail(`${row.id} Coverage 不属于 ${journeyId} 的批准路径。`, { code });
+    }
+    referencedIds(row.cells[3], stateIds, `${row.id} source State`, code, { exactlyOne: true });
+    for (const index of [4, 5, 7, 10]) assertConcreteValue(row.cells[index], `${row.id} Step obligation`, code);
+    for (const index of [6, 9]) assertConcreteValue(row.cells[index], `${row.id} Step guard/recovery`, code, { allowReasonedNotApplicable: true });
+    const destinationIds = structuredIds(row.cells[8]);
+    if (destinationIds.length) {
+      if (destinationIds.some((id) => !stateIds.has(id))) fail(`${row.id} destination 引用了未声明 State。`, { code });
+    } else if (!/^(?:terminal|external|out-of-scope):\s*\S.+$/iu.test(row.cells[8])) {
+      fail(`${row.id} destination 必须引用 State 或使用 terminal/external/out-of-scope reason。`, { code });
     }
   }
-  requireResolvedMarkdownField(text, /^- Journey closure read-back[：:]\s*(.+)$/mu, "Experience journey closure read-back", "experience-journey-evidence");
-  requireResolvedMarkdownField(text, /^- Dangling affordances[：:]\s*(.+)$/mu, "Experience dangling-affordance audit", "experience-journey-evidence");
-  requireResolvedMarkdownField(text, /^- Re-entry \/ retrieval coverage[：:]\s*(.+)$/mu, "Experience re-entry/retrieval evidence", "experience-journey-evidence");
-  requireResolvedMarkdownField(text, /^- Design gap sweep[：:]\s*(.+)$/mu, "Experience design-gap sweep", "experience-journey-evidence");
-  requireResolvedMarkdownField(text, /^- Unresolved design gaps[：:]\s*(.+)$/mu, "Experience unresolved design gaps", "experience-journey-evidence");
+  const sameSet = (left, right) => stableJson([...left].sort()) === stableJson([...right].sort());
+  if (!sameSet(stateOwners, screenIds)) fail("每个 Screen 必须至少拥有一个 material State。", { code });
+  if (!sameSet(screenJourneys, journeyIds) || !sameSet(stepJourneys, journeyIds)) fail("每个 Journey 必须映射到 Screen 和 Step。", { code });
+  if (!sameSet(new Set([...screenCoverage, ...stateCoverage]), coverageIds) || !sameSet(stepCoverage, coverageIds)) {
+    fail("每个 Coverage 必须映射到 Screen/State 且至少一个 Journey Step。", { code });
+  }
+  return { coverageRows, coverageIds, journeyRows, journeyIds, journeySequences, screenRows, screenIds, stateRows, stateIds, stepRows, stepIds };
+}
+
+async function validateBriefJourneyContract(root, artifacts, route) {
+  if (!artifacts.some((artifact) => artifact.path === "draft/experience/brief.md")) return;
+  const text = await readArtifactText(root, "draft/experience/brief.md");
+  parseBriefContract(text, route);
+}
+
+function auditRows(text, code) {
+  const rows = parseTableRows(text, "Functional audit", /^(?:inventory-completeness|transition-closure|feedback-recovery|functional-walkthrough|template-collapse)$/u, 4, "Experience functional audit", code);
+  const required = new Set(["inventory-completeness", "transition-closure", "feedback-recovery", "functional-walkthrough", "template-collapse"]);
+  exactIdSet(rows, required, "Experience functional audit", code);
+  return new Map(rows.map((row) => [row.id, row]));
+}
+
+function bundlePaths(value) {
+  const inline = [...value.matchAll(/`([^`]+)`/gu)].map((match) => match[1]).filter((candidate) => !candidate.includes("<"));
+  if (inline.length) return inline;
+  const cleaned = cleanMarkdownValue(value);
+  return /^[A-Za-z0-9][^\s]*\.[A-Za-z0-9]+$/u.test(cleaned) && !cleaned.includes("<") ? [cleaned] : [];
+}
+
+function assertBoundBundlePaths(value, allowedArtifacts, label, code, { suffix, minimum = 1, forbiddenArtifacts = new Set() } = {}) {
+  const paths = bundlePaths(value);
+  if (paths.length < minimum || (suffix && paths.some((item) => !item.endsWith(suffix)))) fail(`${label} 缺少要求的 artifact path。`, { code });
+  for (const item of paths) {
+    const rel = normalizeRelative(item, label);
+    const artifactPath = `draft/${rel}`;
+    if (forbiddenArtifacts.has(artifactPath)) fail(`${label} 不能用 Brief/manifest 自身代替独立证据：${rel}`, { code });
+    if (!allowedArtifacts.has(artifactPath)) fail(`${label} 未绑定到当前 Brief/preview approval artifacts：${rel}`, { code });
+  }
+  return paths;
+}
+
+function assertReadyBundlePath(value, allowedArtifacts, label, code, { suffix } = {}) {
+  const match = cleanMarkdownValue(value).match(/^ready:\s*(?:`([^`]+)`|([A-Za-z0-9][^\s,;]*\.[A-Za-z0-9]+))(?:\s|$)/u);
+  if (!match) fail(`${label} 必须以 ready: 开头并记录精确 bundle-relative artifact path。`, { code });
+  return assertBoundBundlePaths(`\`${match[1] ?? match[2]}\``, allowedArtifacts, label, code, { suffix });
+}
+
+function assertResolvedManifestFields(text, code) {
+  const values = new Map();
+  for (const label of [
+    "Brief", "Pen source", "Preview exports", "Read-back artifact", "Reference / route evidence",
+    "Experience target", "Direct route", "Pen CLI version", "Live interactive help read", "Visual role",
+    "Functional realization applicability", "Smallest scope / functional detail", "Scope/fidelity approval",
+    "Process state", "Resumable handle retained", "Initial prompt", "Terminal result",
+    "App state / schema read", "Guidelines and document discovery", "Direct mutation summary",
+    "Structural/layout read-back", "Coverage read-back", "Journey closure read-back", "Dangling affordances",
+    "Re-entry / retrieval coverage", "Design gap sweep", "Unresolved design gaps", "Preview file result",
+    "Agent visual capability", "Preview presentation to Owner", "Save / clean exit",
+    "External assets / provenance / delivery permission", "Preview shown", "Preview date",
+    "PM/Owner functional review", "PM/Owner feedback", "PM/Owner preview approval words",
+    "PM/Owner preview approval date", "Behavior or functional drift", "Missing coverage", "Experience status",
+    "Experience reason", "Product risk", "PM/Owner continuation",
+  ]) values.set(label, markdownField(text, label, code));
+  return values;
+}
+
+async function validateManifestJourneyEvidence(root, artifacts, route, briefArtifacts, approvalWords) {
+  if (!artifacts.some((artifact) => artifact.path === "draft/experience/manifest.md")) return;
+  const code = "experience-functional-evidence";
+  const text = await readArtifactText(root, "draft/experience/manifest.md");
+  const brief = await readArtifactText(root, "draft/experience/brief.md");
+  const contract = parseBriefContract(brief, route, code);
+  const fields = assertResolvedManifestFields(text, code);
+  assertExactValue(fields.get("Brief"), "experience/brief.md", "Manifest Brief", code);
+  assertExactValue(fields.get("Experience target"), route, "Experience target", code);
+  assertExactValue(fields.get("Visual role"), "implementation-target", "Visual role", code);
+  if (fields.get("PM/Owner preview approval words") !== approvalWords) fail("Manifest Owner approval words 必须与 approve-preview evidence 完全一致。", { code });
+
+  const allApprovedArtifacts = new Set([...(briefArtifacts ?? []), ...artifacts].map((artifact) => artifact.path));
+  const previewArtifactSet = new Set(artifacts.map((artifact) => artifact.path));
+  const coverageRows = parseCoverageRows(text, "Coverage map", "Experience manifest Coverage", code);
+  exactIdSet(coverageRows, contract.coverageIds, "Experience manifest Coverage", code);
+  const approvedCoverage = new Map(contract.coverageRows.map((row) => [row.id, row]));
+  for (const row of coverageRows) {
+    const approved = approvedCoverage.get(row.id);
+    if (row.cells[1] !== approved.cells[1] || row.cells[4] !== approved.cells[4]) fail(`${row.id} locator 或 runtime relationship 与 Brief 不一致。`, { code });
+  }
+
+  const journeyRows = parseJourneyRows(text, "Journey closure map", "Experience manifest Journey", code);
+  exactIdSet(journeyRows, contract.journeyIds, "Experience manifest Journey", code);
+  for (const row of journeyRows) {
+    const observedSequence = orderedUniqueStructuredIds(row.cells[1]);
+    if (stableJson(contract.journeySequences.get(row.id)) !== stableJson(observedSequence)) {
+      fail(`Experience manifest ${row.id} 的 approved Coverage path 与 Brief 不一致。`, { code });
+    }
+  }
+
+  const screenRows = parseTableRows(text, "Screen realization", /^SCR-[A-Z0-9-]+$/u, 4, "Experience Screen realization", code, { required: route !== "not-needed" });
+  const stateRows = parseTableRows(text, "State realization", /^STATE-[A-Z0-9-]+$/u, 4, "Experience State realization", code, { required: route !== "not-needed" });
+  const stepRows = parseTableRows(text, "Step transition realization", /^STEP-[A-Z0-9-]+$/u, 7, "Experience Step realization", code, { required: route !== "not-needed" });
+  if (route === "not-needed") {
+    if (screenRows.length || stateRows.length || stepRows.length) fail("not-needed manifest 不得声明 Screen/State/Step realization。", { code });
+  } else {
+    exactIdSet(screenRows, contract.screenIds, "Experience Screen realization", code);
+    exactIdSet(stateRows, contract.stateIds, "Experience State realization", code);
+    exactIdSet(stepRows, contract.stepIds, "Experience Step realization", code);
+  }
+  const audits = auditRows(text, code);
+  const unavailable = route === "pen" && fields.get("Direct route") === "unavailable";
+  const success = route !== "not-needed" && !unavailable;
+  if (success) {
+    for (const row of [...screenRows, ...stateRows]) {
+      assertConcreteValue(row.cells[1], `${row.id} artifact locator`, code);
+      assertConcreteValue(row.cells[2], `${row.id} realization evidence`, code);
+      assertExactValue(row.cells.at(-1), "pass", `${row.id} realization result`, code);
+    }
+    for (const row of stepRows) {
+      for (const index of [1, 2, 3]) assertConcreteValue(row.cells[index], `${row.id} transition evidence`, code);
+      for (const index of [4, 5]) assertConcreteValue(row.cells[index], `${row.id} recovery/re-entry evidence`, code, { allowReasonedNotApplicable: true });
+      assertExactValue(row.cells.at(-1), "pass", `${row.id} realization result`, code);
+    }
+    for (const id of ["inventory-completeness", "transition-closure", "feedback-recovery", "functional-walkthrough"]) {
+      assertConcreteValue(audits.get(id).cells[1], `${id} scope`, code);
+      assertConcreteValue(audits.get(id).cells[2], `${id} evidence`, code);
+      assertExactValue(audits.get(id).cells[3], "pass", `${id} result`, code);
+    }
+    const collapseRow = audits.get("template-collapse");
+    assertConcreteValue(collapseRow.cells[1], "template-collapse scope", code);
+    assertConcreteValue(collapseRow.cells[2], "template-collapse evidence", code, { allowReasonedNotApplicable: true });
+    const collapse = collapseRow.cells[3];
+    if (cleanMarkdownValue(collapse).toLowerCase() !== "pass" && !isReasonedNotApplicable(collapse)) fail("template-collapse result 必须 pass 或给出 reasoned not-applicable。", { code });
+  } else if (unavailable) {
+    for (const row of [...screenRows, ...stateRows]) {
+      assertUnavailableValue(row.cells[1], `${row.id} unavailable locator`, code);
+      assertUnavailableValue(row.cells[2], `${row.id} unavailable evidence`, code);
+      assertExactValue(row.cells.at(-1), "unverified", `${row.id} unavailable realization`, code);
+    }
+    for (const row of stepRows) {
+      for (const value of row.cells.slice(1, -1)) assertUnavailableValue(value, `${row.id} unavailable transition evidence`, code);
+      assertExactValue(row.cells.at(-1), "unverified", `${row.id} unavailable realization`, code);
+    }
+    for (const id of ["inventory-completeness", "transition-closure", "feedback-recovery", "functional-walkthrough"]) {
+      assertUnavailableValue(audits.get(id).cells[2], `${id} unavailable evidence`, code);
+      assertExactValue(audits.get(id).cells[3], "unverified", `${id} unavailable result`, code);
+    }
+    const collapseRow = audits.get("template-collapse");
+    assertUnavailableValue(collapseRow.cells[2], "template-collapse unavailable evidence", code);
+    const collapse = collapseRow.cells[3];
+    if (cleanMarkdownValue(collapse).toLowerCase() !== "unverified" && !isReasonedNotApplicable(collapse)) fail("unavailable template-collapse 必须 unverified 或 reasoned not-applicable。", { code });
+  } else {
+    for (const row of audits.values()) assertReasonedNotApplicable(row.cells[3], `${row.id} result`, code);
+  }
+
+  if (route === "pen" && !unavailable) {
+    assertExactValue(fields.get("Direct route"), "pen-interactive-direct", "Direct route", code);
+    assertExactValue(fields.get("Functional realization applicability"), "required", "Functional realization applicability", code);
+    assertConcreteValue(fields.get("Pen CLI version"), "Pen CLI version", code);
+    assertExactValue(fields.get("Live interactive help read"), "yes", "Live interactive help read", code);
+    assertExactValue(fields.get("Process state"), "ready", "Process state", code);
+    assertExactValue(fields.get("Resumable handle retained"), "yes", "Resumable handle retained", code);
+    assertExactValue(fields.get("Initial prompt"), "seen", "Initial prompt", code);
+    assertExactValue(fields.get("Terminal result"), "none", "Terminal result", code);
+    assertBoundBundlePaths(fields.get("Pen source"), previewArtifactSet, "Pen source", code, { suffix: ".pen" });
+    assertBoundBundlePaths(fields.get("Preview exports"), previewArtifactSet, "Preview exports", code, { suffix: ".png" });
+    assertBoundBundlePaths(fields.get("Read-back artifact"), previewArtifactSet, "Read-back artifact", code, {
+      suffix: ".md",
+      forbiddenArtifacts: new Set(["draft/experience/manifest.md"]),
+    });
+    assertReasonedNotApplicable(fields.get("Reference / route evidence"), "Reference / route evidence", code);
+    for (const label of ["App state / schema read", "Guidelines and document discovery", "Direct mutation summary", "Structural/layout read-back", "Coverage read-back", "Journey closure read-back", "Re-entry / retrieval coverage", "Design gap sweep"]) assertConcreteValue(fields.get(label), label, code);
+    for (const row of coverageRows) {
+      assertConcreteValue(row.cells[2], `${row.id} artifact locator`, code);
+      assertConcreteValue(row.cells[3], `${row.id} preview/state`, code);
+      assertExactValue(row.cells[5], "synced", `${row.id} sync result`, code);
+    }
+    for (const row of journeyRows) {
+      assertConcreteValue(row.cells[2], `${row.id} observed path`, code);
+      assertExactValue(row.cells[3], "closed", `${row.id} closure result`, code);
+    }
+    assertReadyBundlePath(fields.get("Preview file result"), previewArtifactSet, "Preview file result", code, { suffix: ".png" });
+    if (!["agent-visual", "human-required"].includes(fields.get("Agent visual capability"))) fail("Pen route 必须记录 Agent visual capability。", { code });
+    if (!["attached", "rendered", "local-path"].includes(fields.get("Preview presentation to Owner"))) fail("Pen preview 必须已向 Owner 展示。", { code });
+    assertExactValue(fields.get("Save / clean exit"), "yes", "Save / clean exit", code);
+  } else if (route === "existing-reference") {
+    assertExactValue(fields.get("Direct route"), "existing-reference", "Direct route", code);
+    assertExactValue(fields.get("Functional realization applicability"), "required", "Functional realization applicability", code);
+    for (const label of ["Pen source", "Preview exports", "Read-back artifact", "Pen CLI version", "Live interactive help read", "Process state", "Resumable handle retained", "Initial prompt", "Terminal result", "Save / clean exit", "Preview file result"]) {
+      assertReasonedNotApplicable(fields.get(label), label, code);
+    }
+    for (const label of ["App state / schema read", "Direct mutation summary"]) assertReasonedNotApplicable(fields.get(label), label, code);
+    assertConcreteValue(fields.get("Guidelines and document discovery"), "Guidelines and document discovery", code);
+    assertBoundBundlePaths(fields.get("Reference / route evidence"), allApprovedArtifacts, "Reference / route evidence", code, {
+      forbiddenArtifacts: new Set(["draft/experience/brief.md", "draft/experience/manifest.md"]),
+    });
+    for (const label of ["Structural/layout read-back", "Coverage read-back", "Journey closure read-back", "Re-entry / retrieval coverage", "Design gap sweep"]) assertConcreteValue(fields.get(label), label, code);
+    for (const row of coverageRows) {
+      assertConcreteValue(row.cells[2], `${row.id} reference locator`, code);
+      assertConcreteValue(row.cells[3], `${row.id} preview/state`, code);
+      assertExactValue(row.cells[5], "synced", `${row.id} sync result`, code);
+    }
+    for (const row of journeyRows) {
+      assertConcreteValue(row.cells[2], `${row.id} observed reference path`, code);
+      assertExactValue(row.cells[3], "closed", `${row.id} closure result`, code);
+    }
+    if (!["agent-visual", "human-required"].includes(fields.get("Agent visual capability"))) fail("existing-reference 必须记录 visual capability。", { code });
+    if (!["attached", "rendered", "local-path"].includes(fields.get("Preview presentation to Owner"))) fail("existing-reference 必须已向 Owner 展示。", { code });
+  } else if (route === "not-needed") {
+    assertExactValue(fields.get("Direct route"), "not-needed", "Direct route", code);
+    assertReasonedNotApplicable(fields.get("Functional realization applicability"), "Functional realization applicability", code);
+    for (const label of ["Pen source", "Preview exports", "Read-back artifact", "Pen CLI version", "Live interactive help read", "Process state", "Resumable handle retained", "Initial prompt", "Terminal result", "Save / clean exit", "Preview file result", "Agent visual capability", "Preview presentation to Owner", "Preview date"]) {
+      assertReasonedNotApplicable(fields.get(label), label, code);
+    }
+    for (const label of ["App state / schema read", "Direct mutation summary", "Structural/layout read-back", "Coverage read-back", "Journey closure read-back", "Re-entry / retrieval coverage"]) assertReasonedNotApplicable(fields.get(label), label, code);
+    assertConcreteValue(fields.get("Guidelines and document discovery"), "Guidelines and document discovery", code);
+    assertConcreteValue(fields.get("Design gap sweep"), "Design gap sweep", code);
+    assertBoundBundlePaths(fields.get("Reference / route evidence"), allApprovedArtifacts, "Reference / route evidence", code, {
+      forbiddenArtifacts: new Set(["draft/experience/brief.md", "draft/experience/manifest.md"]),
+    });
+    for (const row of coverageRows) {
+      assertReasonedNotApplicable(row.cells[2], `${row.id} artifact locator`, code);
+      assertReasonedNotApplicable(row.cells[5], `${row.id} sync result`, code);
+    }
+    for (const row of journeyRows) {
+      assertReasonedNotApplicable(row.cells[2], `${row.id} observed path`, code);
+      assertReasonedNotApplicable(row.cells[3], `${row.id} closure result`, code);
+    }
+  } else if (unavailable) {
+    assertExactValue(fields.get("Functional realization applicability"), "required", "Functional realization applicability", code);
+    for (const label of ["Pen source", "Preview exports", "Read-back artifact"]) assertReasonedNotApplicable(fields.get(label), label, code);
+    assertBoundBundlePaths(fields.get("Reference / route evidence"), previewArtifactSet, "Reference / route evidence", code, {
+      forbiddenArtifacts: new Set(["draft/experience/manifest.md"]),
+    });
+    assertExactValue(fields.get("Process state"), "terminated", "Process state", code);
+    if (!["yes", "no"].includes(fields.get("Live interactive help read"))) fail("Unavailable Pen route 必须记录 live help 结果。", { code });
+    if (!["yes", "no"].includes(fields.get("Resumable handle retained")) && !isReasonedNotApplicable(fields.get("Resumable handle retained"))) fail("Unavailable Pen route handle 字段无效。", { code });
+    if (!["seen", "not-seen-at-termination"].includes(fields.get("Initial prompt"))) fail("Unavailable Pen route prompt 字段无效。", { code });
+    assertConcreteValue(fields.get("Terminal result"), "Terminal result", code);
+    if (!/^unavailable:\s*\S.+$/iu.test(fields.get("Preview file result"))) fail("Unavailable Pen route 必须记录 preview unavailable reason。", { code });
+    assertReasonedNotApplicable(fields.get("Agent visual capability"), "Agent visual capability", code);
+    assertExactValue(fields.get("Preview presentation to Owner"), "unavailable", "Preview presentation to Owner", code);
+    assertExactValue(fields.get("Save / clean exit"), "no", "Save / clean exit", code);
+    for (const row of coverageRows) assertExactValue(row.cells[5], "unverified", `${row.id} sync result`, code);
+    for (const row of coverageRows) assertUnavailableValue(row.cells[2], `${row.id} unavailable artifact locator`, code);
+    for (const row of journeyRows) {
+      assertUnavailableValue(row.cells[2], `${row.id} unavailable observed path`, code);
+      assertExactValue(row.cells[3], "unverified", `${row.id} closure result`, code);
+    }
+  }
+
+  if (success) {
+    assertExactValue(fields.get("Preview shown"), "yes", "Preview shown", code);
+    assertConcreteValue(fields.get("Preview date"), "Preview date", code);
+    assertConcreteValue(fields.get("PM/Owner functional review"), "PM/Owner functional review", code);
+    assertConcreteValue(fields.get("PM/Owner preview approval date"), "PM/Owner preview approval date", code);
+    assertConcreteValue(fields.get("Experience reason"), "Experience reason", code);
+    if (fields.get("Experience reason").toLowerCase() === "tool-unavailable") fail("completed Experience 不能使用 tool-unavailable reason。", { code });
+    for (const label of ["Behavior or functional drift", "Missing coverage", "Unresolved design gaps", "Dangling affordances", "Product risk", "PM/Owner continuation"]) assertExactValue(fields.get(label), "none", label, code);
+    assertExactValue(fields.get("Experience status"), "completed", "Experience status", code);
+  } else if (route === "not-needed") {
+    assertExactValue(fields.get("Preview shown"), "no", "Preview shown", code);
+    assertConcreteValue(fields.get("PM/Owner functional review"), "PM/Owner functional review", code);
+    assertConcreteValue(fields.get("PM/Owner preview approval date"), "PM/Owner preview approval date", code);
+    assertConcreteValue(fields.get("Experience reason"), "Experience reason", code);
+    if (fields.get("Experience reason").toLowerCase() === "tool-unavailable") fail("not-needed Experience 不能使用 tool-unavailable reason。", { code });
+    for (const label of ["Behavior or functional drift", "Missing coverage", "Unresolved design gaps", "Dangling affordances", "Product risk", "PM/Owner continuation"]) assertExactValue(fields.get(label), "none", label, code);
+    assertExactValue(fields.get("Experience status"), "completed", "Experience status", code);
+  } else {
+    assertExactValue(fields.get("Preview shown"), "no", "Preview shown", code);
+    assertReasonedNotApplicable(fields.get("Preview date"), "Preview date", code);
+    assertReasonedNotApplicable(fields.get("PM/Owner functional review"), "PM/Owner functional review", code);
+    assertConcreteValue(fields.get("PM/Owner preview approval date"), "PM/Owner continuation date", code);
+    if (isNoneValue(fields.get("Missing coverage"))) fail("Unavailable Pen route 必须记录 missing coverage。", { code });
+    assertExactValue(fields.get("Experience status"), "skipped-risk", "Experience status", code);
+    assertExactValue(fields.get("Experience reason"), "tool-unavailable", "Experience reason", code);
+    if (isNoneValue(fields.get("Product risk"))) fail("Unavailable Pen route 必须记录具体 product risk。", { code });
+    if (fields.get("PM/Owner continuation") !== approvalWords) fail("Unavailable Pen route 必须绑定 exact Owner continuation。", { code });
+  }
 }
 
 function assertArtifactsUnder(records, prefix, label) {
@@ -2107,18 +2498,19 @@ async function executeCommand(command, options) {
       const route = assertEnum(requireOption(options, "experience-route"), ["pen", "existing-reference", "not-needed"], "--experience-route");
       const artifacts = await artifactRecords(root, options.artifact);
       assertArtifactsUnder(artifacts, "draft/", "Brief approval artifacts");
-      await validateBriefJourneyContract(root, artifacts);
+      await validateBriefJourneyContract(root, artifacts, route);
       return { event: { type: "brief-approved", actor: actorFrom(options), artifacts, payload: { approval_evidence: approvalEvidence(options), experience_route: route } } };
     });
   }
   if (command === "approve-preview") {
-    return transition(rootOption, options, command, async ({ root, integrity }) => {
+    return transition(rootOption, options, command, async ({ root, state, integrity }) => {
       assertNoIntegrityIssues(integrity, ["approval:definition", "approval:brief"]);
       const route = assertEnum(requireOption(options, "experience-route"), ["pen", "existing-reference", "not-needed"], "--experience-route");
       const artifacts = await artifactRecords(root, options.artifact);
       assertArtifactsUnder(artifacts, "draft/", "Preview approval artifacts");
-      await validateManifestJourneyEvidence(root, artifacts);
-      return { event: { type: "preview-approved", actor: actorFrom(options), artifacts, payload: { approval_evidence: approvalEvidence(options), experience_route: route } } };
+      const evidence = approvalEvidence(options);
+      await validateManifestJourneyEvidence(root, artifacts, route, state.approvals.brief?.artifacts, evidence);
+      return { event: { type: "preview-approved", actor: actorFrom(options), artifacts, payload: { approval_evidence: evidence, experience_route: route } } };
     });
   }
   if (command === "start-draft-revision") {

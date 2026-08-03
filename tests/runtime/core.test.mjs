@@ -70,6 +70,8 @@ test("event decoder rejects unknown schema and fields", () => {
     occurredAt: "2026-07-30T12:00:00.000Z",
   });
   assert.equal(decodeEvent(structuredClone(event)).event_id, "EVT-000001");
+  assert.throws(() => decodeEvent({ ...event, schema_version: 3 }), (error) => error.code === "schema-version");
+  assert.throws(() => decodeEvent({ ...event, runtime_version: "3.0.0" }), (error) => error.code === "runtime-version");
   assert.throws(() => decodeEvent({ ...event, schema_version: 99 }), (error) => error.exitCode === EXIT.INTEGRITY);
   assert.throws(() => decodeEvent({ ...event, runtime_version: "0.0.0" }), (error) => error.code === "runtime-version");
   assert.throws(() => decodeEvent({ ...event, unexpected: true }), WorkflowError);
@@ -96,8 +98,8 @@ test("one semantic contract validates payload, actor, artifact, and path relatio
     { type: "change-started", role: "product-owner", payload: { change_id: "CHG-core-001", change_path: "changes/CHG-core-001.md", approval_evidence: "批准变更", release_id: "REL-core-001", release_manifest_sha256: sha("c") }, artifacts: [artifact("changes/CHG-core-001.md")], pathField: "change_path", corrupt: (payload) => { payload.approval_evidence = 1; } },
   ];
   const rawEvent = ({ type, role, payload, artifacts }) => ({
-    schema_version: 3,
-    runtime_version: "3.0.0",
+    schema_version: 4,
+    runtime_version: "4.0.0",
     delivery_id: "DEL-payload",
     revision: 1,
     event_id: "EVT-000001",

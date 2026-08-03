@@ -34,9 +34,10 @@ If the host cannot provide a model, session, configuration, or runtime identity,
 
 1. Map behavior claims to authoritative `path#ID` locators and fact status.
 2. Normalize critical behavior as actor, start, event, guard, success, failure/recovery, and side effects.
-3. Probe terminology, ownership, permission, money/data effects, exception/recovery, cross-contract references, Experience coverage, complete journeys, later re-entry/retrieval, dangling affordances, save/read-back, preview, and asset provenance.
-4. If two materially different observable implementations both satisfy a statement, raise a Finding rather than choose.
-5. Give each Finding one `FND-*`, severity, evidence, counterexample, impact, Owner, return target, affected locators, and closure evidence.
+3. Independently reconstruct functional obligations from Definition/Journey authority before reading manifest completion claims: Screen jobs, material States, required content/regions/semantic controls, Step triggers, feedback, results, failure/recovery and re-entry. Compare those obligations with the Brief, actual artifact locators and descendant read-back; then probe terminology, ownership, permission, money/data effects, exceptions, complete journeys, dangling affordances, save/read-back, preview, and asset provenance.
+4. Probe `template-collapse` without a visual or numeric heuristic. Shared shells, repeated layouts, arbitrary node names, monochrome output and justified identical state structures are allowed. Raise a Finding when different primary jobs lack their own required content/control evidence or are collapsed into one functional skeleton without a task reason; labels, icons, many frames or visual variants cannot compensate.
+5. If two materially different observable implementations both satisfy a statement, raise a Finding rather than choose.
+6. Give each Finding one `FND-*`, severity, evidence, counterexample, impact, Owner, return target, affected locators, and closure evidence.
 
 Use outcome `passed` only with no current Finding; `findings-open` with one or more repeated `--finding-id`; `accepted-risk` only when the report already contains explicit Owner acceptance for every residual risk and no item is pending.
 
