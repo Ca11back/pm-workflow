@@ -154,6 +154,8 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(functionalWireflow, /One complete Screen may pass/);
   assert.match(functionalWireflow, /Justified identical state structures may pass/);
   assert.match(functionalWireflow, /separate pages, frames, or named roots per State are never mandatory/);
+  assert.match(functionalWireflow, /experience\/<current>\.pen#<real-node-id>/);
+  assert.match(functionalWireflow, /semantic IDs, node names, prose, and Screen-root placeholders are not Pen evidence/);
   assert.match(functionalWireflow, /canonical validator is fail-fast/);
   assert.match(functionalWireflow, /targeted identities disappear and the next diagnostic fingerprint has not been seen/);
   assert.match(functionalWireflow, /Stop when a targeted identity persists or a diagnostic fingerprint repeats/);
@@ -174,7 +176,12 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(experienceManifest, /## Screen realization/);
   assert.match(experienceManifest, /## State realization/);
   assert.match(experienceManifest, /State-specific artifact locator/);
+  assert.match(experienceManifest, /path must equal the resolved `Pen source` artifact/i);
+  assert.match(experienceManifest, /actual non-empty node `id`/);
+  assert.doesNotMatch(experienceManifest, /node-id-or-visible-name|state-variant-or-descendant/);
   assert.match(experienceManifest, /## Step transition realization/);
+  assert.match(experienceManifest, /source-state-id.*trigger-control-id/);
+  assert.match(experienceManifest, /exact approved `terminal:` \/ `external:` \/ `out-of-scope:` reason/);
   assert.match(experienceManifest, /## Functional audit/);
   for (const audit of ["inventory-completeness", "transition-closure", "feedback-recovery", "functional-walkthrough", "template-collapse"]) assert.match(experienceManifest, new RegExp(audit));
   assert.match(experienceManifest, /shared shells.*identical node counts.*arbitrary node names.*monochrome output/i);
@@ -208,6 +215,8 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(skill, /read-only `preflight-experience`/);
   assert.match(skill, /retain the same live Pen handle/);
   assert.match(skill, /Save \/ clean exit: saved-open/);
+  assert.match(skill, /experience\/<current>\.pen#<real-node-id>/);
+  assert.match(skill, /semantic IDs, node names, prose, and Screen-root placeholders are invalid/);
   assert.match(skill, /canonical validator is fail-fast/);
   assert.match(skill, /previously targeted identities disappear from the next diagnostic and its fingerprint has not been seen/);
   assert.match(skill, /Stop when any targeted identity persists, a diagnostic fingerprint repeats/);
@@ -217,6 +226,8 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(reference, /Experience preflight rejection is a contract diagnostic, not Pen termination or tool unavailability/);
   assert.match(reference, /change `Save \/ clean exit` to `yes`/);
   assert.match(reference, /Preflight is read-only and neither records Owner review nor replaces `approve-preview`/);
+  assert.match(reference, /actual non-empty node `id` returned by the current document/);
+  assert.match(reference, /multiple States under one Screen need distinct evidence nodes/);
   assert.doesNotMatch(reference, /(?:rerun|retry).{0,40}(?:twice|three times|\d+ times)/i);
   assert.match(skill, /start-draft-revision/);
   assert.match(skill, /--return-phase experience/);
@@ -265,6 +276,11 @@ test("pm-experience directs one live Pen process without a wrapper and handles n
   assert.match(runtimeSource, /functional wireflow Brief.*功能原型、回读并展示预览/);
   assert.match(runtimeSource, /"preflight-experience": \["root", "artifact", "experience-route", "json"\]/);
   assert.match(runtimeSource, /unresolved_identities/);
+  assert.match(runtimeSource, /const PEN_DOCUMENT_VERSION = "2\.15"/);
+  assert.match(runtimeSource, /validatePenArtifactEvidence/);
+  assert.match(runtimeSource, /outside-owner-screen/);
+  assert.match(runtimeSource, /duplicate-state-evidence/);
+  assert.match(runtimeSource, /semantic-identity-locator/);
   for (const heuristic of [/node_count/i, /subtree_similarity/i, /visual_novelty/i, /product_keywords/i, /aesthetic_score/i, /\.pen JSON parser/i]) {
     assert.doesNotMatch(runtimeSource, heuristic, `runtime heuristic boundary: ${heuristic}`);
   }

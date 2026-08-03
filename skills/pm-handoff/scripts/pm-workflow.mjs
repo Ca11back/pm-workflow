@@ -98,6 +98,7 @@ const REVIEW_MODES = Object.freeze(["self-check", "isolated-same-model", "indepe
 const REVIEW_OUTCOMES = Object.freeze(["passed", "findings-open", "accepted-risk"]);
 const RECEIPT_STATUSES = Object.freeze(["acknowledged", "accepted", "rejected"]);
 const CONTROLLED_DIRECTORIES = Object.freeze(["events", "source", "draft", "candidates", "reviews", "releases", "changes"]);
+const PEN_DOCUMENT_VERSION = "2.15";
 const SECRET_PATTERNS = Object.freeze([
   /\bsk-[A-Za-z0-9_-]{16,}\b/g,
   /\b(?:ghp|github_pat)_[A-Za-z0-9_]{16,}\b/g,
@@ -1513,19 +1514,29 @@ function parseBriefContract(text, route, code = "experience-functional-contract"
   const screenIds = new Set(screenRows.map((row) => row.id));
   const stateIds = new Set(stateRows.map((row) => row.id));
   const stepIds = new Set(stepRows.map((row) => row.id));
+  const coverageScreenIds = new Map([...coverageIds].map((id) => [id, new Set()]));
+  const stateOwnerIds = new Map();
+  const stepSourceStateIds = new Map();
+  const stepDestinationStateIds = new Map();
+  const stepRecoveryContracts = new Map();
   const screenCoverage = new Set();
   const stateCoverage = new Set();
   const stepCoverage = new Set();
   const screenJourneys = new Set();
   for (const row of screenRows) {
-    for (const id of referencedIds(row.cells[1], coverageIds, `${row.id} Coverage IDs`, code)) screenCoverage.add(id);
+    const ownedCoverage = referencedIds(row.cells[1], coverageIds, `${row.id} Coverage IDs`, code);
+    for (const id of ownedCoverage) {
+      screenCoverage.add(id);
+      coverageScreenIds.get(id).add(row.id);
+    }
     for (const id of referencedIds(row.cells[2], journeyIds, `${row.id} Journey IDs`, code)) screenJourneys.add(id);
     for (const value of row.cells.slice(3)) assertConcreteValue(value, `${row.id} Screen obligation`, code);
   }
-  const stateOwners = new Set();
+  const ownedScreenIds = new Set();
   for (const row of stateRows) {
     const [owner] = referencedIds(row.cells[1], screenIds, `${row.id} owner Screen ID`, code, { exactlyOne: true });
-    stateOwners.add(owner);
+    stateOwnerIds.set(row.id, owner);
+    ownedScreenIds.add(owner);
     for (const id of referencedIds(row.cells[2], coverageIds, `${row.id} Coverage IDs`, code)) stateCoverage.add(id);
     for (const value of row.cells.slice(3)) assertConcreteValue(value, `${row.id} State obligation`, code);
   }
@@ -1538,7 +1549,8 @@ function parseBriefContract(text, route, code = "experience-functional-contract"
       stepCoverage.add(id);
       if (!journeySequences.get(journeyId).includes(id)) fail(`${row.id} Coverage 不属于 ${journeyId} 的批准路径。`, { code });
     }
-    referencedIds(row.cells[3], stateIds, `${row.id} source State`, code, { exactlyOne: true });
+    const [sourceStateId] = referencedIds(row.cells[3], stateIds, `${row.id} source State`, code, { exactlyOne: true });
+    stepSourceStateIds.set(row.id, sourceStateId);
     for (const index of [4, 5, 7, 10]) assertConcreteValue(row.cells[index], `${row.id} Step obligation`, code);
     for (const index of [6, 9]) assertConcreteValue(row.cells[index], `${row.id} Step guard/recovery`, code, { allowReasonedNotApplicable: true });
     const destinationIds = structuredIds(row.cells[8]);
@@ -1547,14 +1559,33 @@ function parseBriefContract(text, route, code = "experience-functional-contract"
     } else if (!/^(?:terminal|external|out-of-scope):\s*\S.+$/iu.test(row.cells[8])) {
       fail(`${row.id} destination 必须引用 State 或使用 terminal/external/out-of-scope reason。`, { code });
     }
+    stepDestinationStateIds.set(row.id, destinationIds);
+    stepRecoveryContracts.set(row.id, row.cells[9]);
   }
   const sameSet = (left, right) => stableJson([...left].sort()) === stableJson([...right].sort());
-  if (!sameSet(stateOwners, screenIds)) fail("每个 Screen 必须至少拥有一个 material State。", { code });
+  if (!sameSet(ownedScreenIds, screenIds)) fail("每个 Screen 必须至少拥有一个 material State。", { code });
   if (!sameSet(screenJourneys, journeyIds) || !sameSet(stepJourneys, journeyIds)) fail("每个 Journey 必须映射到 Screen 和 Step。", { code });
   if (!sameSet(new Set([...screenCoverage, ...stateCoverage]), coverageIds) || !sameSet(stepCoverage, coverageIds)) {
     fail("每个 Coverage 必须映射到 Screen/State 且至少一个 Journey Step。", { code });
   }
-  return { coverageRows, coverageIds, journeyRows, journeyIds, journeySequences, screenRows, screenIds, stateRows, stateIds, stepRows, stepIds };
+  return {
+    coverageRows,
+    coverageIds,
+    journeyRows,
+    journeyIds,
+    journeySequences,
+    screenRows,
+    screenIds,
+    coverageScreenIds,
+    stateRows,
+    stateIds,
+    stateOwnerIds,
+    stepRows,
+    stepIds,
+    stepSourceStateIds,
+    stepDestinationStateIds,
+    stepRecoveryContracts,
+  };
 }
 
 async function validateBriefJourneyContract(root, artifacts, route) {
@@ -1593,6 +1624,288 @@ function assertReadyBundlePath(value, allowedArtifacts, label, code, { suffix } 
   const match = cleanMarkdownValue(value).match(/^ready:\s*(?:`([^`]+)`|([A-Za-z0-9][^\s,;]*\.[A-Za-z0-9]+))(?:\s|$)/u);
   if (!match) fail(`${label} 必须以 ready: 开头并记录精确 bundle-relative artifact path。`, { code });
   return assertBoundBundlePaths(`\`${match[1] ?? match[2]}\``, allowedArtifacts, label, code, { suffix });
+}
+
+function isExplicitNonPenDestination(value) {
+  return /^(?:terminal|external|out-of-scope):\s*\S.+$/iu.test(cleanMarkdownValue(value));
+}
+
+function failPenEvidence(message, { rowId = undefined, field, expectedPath = undefined, expectedOwner = undefined, actualLocator = undefined, reason = undefined } = {}) {
+  const details = { field };
+  if (rowId !== undefined) details.row_id = rowId;
+  if (expectedPath !== undefined) details.expected_path = expectedPath;
+  if (expectedOwner !== undefined) details.expected_owner = expectedOwner;
+  if (actualLocator !== undefined) details.actual_locator = actualLocator;
+  if (reason !== undefined) details.reason = reason;
+  fail(message, { code: "experience-functional-evidence", details });
+}
+
+function parsePenLocator(locator, expectedPath, rowId, field) {
+  const cleaned = cleanMarkdownValue(locator);
+  const separator = cleaned.indexOf("#");
+  const artifactPath = separator === -1 ? "" : cleaned.slice(0, separator);
+  const nodeId = separator === -1 ? "" : cleaned.slice(separator + 1);
+  if (artifactPath !== expectedPath || !nodeId.trim()) {
+    failPenEvidence(`${rowId} ${field} 必须使用精确 Pen artifact locator。`, {
+      rowId,
+      field,
+      expectedPath: `${expectedPath}#<real-node-id>`,
+      actualLocator: cleaned,
+    });
+  }
+  return { locator: cleaned, nodeId };
+}
+
+function parsePenLocatorSequence(value, expectedPath, rowId, field) {
+  const cleaned = value.trim();
+  const codeSpans = [...cleaned.matchAll(/`([^`]+)`/gu)];
+  let tokens;
+  if (codeSpans.length) {
+    const remainder = cleaned.replace(/`[^`]+`/gu, "");
+    if (remainder.includes("`") || !/^(?:\s*(?:->|→|,)\s*)*$/u.test(remainder)) {
+      failPenEvidence(`${rowId} ${field} 只能包含精确 Pen locators 与路径分隔符。`, {
+        rowId,
+        field,
+        expectedPath: `${expectedPath}#<real-node-id>`,
+        actualLocator: cleaned,
+      });
+    }
+    tokens = codeSpans.map((match) => match[1]);
+  } else {
+    tokens = cleaned.split(/\s*(?:->|→|,)\s*/u).filter(Boolean);
+  }
+  if (!tokens.length) {
+    failPenEvidence(`${rowId} ${field} 缺少 Pen artifact locator。`, {
+      rowId,
+      field,
+      expectedPath: `${expectedPath}#<real-node-id>`,
+      actualLocator: cleaned,
+    });
+  }
+  return tokens.map((token) => parsePenLocator(token, expectedPath, rowId, field));
+}
+
+function indexPenDocument(document, sourcePath) {
+  if (!isPlainObject(document)) {
+    failPenEvidence("Pen source 根必须是当前支持的 JSON object。", { field: "Pen source", expectedPath: sourcePath, reason: "non-object-root" });
+  }
+  if (document.version !== PEN_DOCUMENT_VERSION) {
+    failPenEvidence("Pen source document version 不受支持。", {
+      field: "Pen source",
+      expectedPath: sourcePath,
+      actualLocator: String(document.version ?? "missing"),
+      reason: `expected-version-${PEN_DOCUMENT_VERSION}`,
+    });
+  }
+  if (!Array.isArray(document.children) || document.children.length === 0) {
+    failPenEvidence("Pen source 缺少当前 schema 的非空 children 节点树。", { field: "Pen source", expectedPath: sourcePath, reason: "missing-node-tree" });
+  }
+  const nodes = new Map();
+  const parents = new Map();
+  const visit = (node, parentId) => {
+    if (!isPlainObject(node)) {
+      failPenEvidence("Pen source children 必须只包含 node objects。", { field: "Pen source", expectedPath: sourcePath, reason: "malformed-node" });
+    }
+    if (typeof node.id !== "string" || !node.id.trim()) {
+      failPenEvidence("Pen source node 缺少非空 string id。", { field: "Pen source", expectedPath: sourcePath, reason: "missing-node-id" });
+    }
+    if (nodes.has(node.id)) {
+      failPenEvidence("Pen source 含重复 node id。", { field: "Pen source", expectedPath: sourcePath, actualLocator: `${sourcePath}#${node.id}`, reason: "duplicate-node-id" });
+    }
+    if (Object.hasOwn(node, "children") && !Array.isArray(node.children)) {
+      failPenEvidence("Pen source node children 必须是 array。", { field: "Pen source", expectedPath: sourcePath, actualLocator: `${sourcePath}#${node.id}`, reason: "malformed-child-collection" });
+    }
+    nodes.set(node.id, node);
+    parents.set(node.id, parentId);
+    for (const child of node.children ?? []) visit(child, node.id);
+  };
+  for (const child of document.children) visit(child, null);
+  return { nodes, parents };
+}
+
+async function readPenDocumentIndex(root, sourcePath) {
+  let document;
+  try {
+    document = JSON.parse(await readArtifactText(root, `draft/${sourcePath}`));
+  } catch (error) {
+    if (error instanceof WorkflowError) throw error;
+    failPenEvidence("Pen source 不是有效的当前-schema JSON artifact。", {
+      field: "Pen source",
+      expectedPath: sourcePath,
+      reason: error instanceof SyntaxError ? "invalid-json" : "read-failure",
+    });
+  }
+  return indexPenDocument(document, sourcePath);
+}
+
+function penNodeIsWithin(index, nodeId, ancestorId, { strict = false } = {}) {
+  if (!strict && nodeId === ancestorId) return true;
+  let current = index.parents.get(nodeId);
+  while (current !== null && current !== undefined) {
+    if (current === ancestorId) return true;
+    current = index.parents.get(current);
+  }
+  return false;
+}
+
+function resolvePenLocators(index, value, sourcePath, rowId, field, { semanticIds = new Set() } = {}) {
+  const locators = parsePenLocatorSequence(value, sourcePath, rowId, field);
+  for (const locator of locators) {
+    if (!index.nodes.has(locator.nodeId)) {
+      failPenEvidence(`${rowId} ${field} 引用了 Pen source 中不存在的 node id。`, {
+        rowId,
+        field,
+        expectedPath: sourcePath,
+        actualLocator: locator.locator,
+        reason: "missing-node-id",
+      });
+    }
+    if (semanticIds.has(locator.nodeId) || /^(?:JNY|SCR|STATE|STEP)-[A-Z0-9-]+$/u.test(locator.nodeId)) {
+      failPenEvidence(`${rowId} ${field} 不能用 approved semantic ID 代替 Pen node id。`, {
+        rowId,
+        field,
+        expectedPath: `${sourcePath}#<real-node-id>`,
+        actualLocator: locator.locator,
+        reason: "semantic-identity-locator",
+      });
+    }
+  }
+  return locators;
+}
+
+function requireSinglePenLocator(index, value, sourcePath, rowId, field, options = undefined) {
+  const locators = resolvePenLocators(index, value, sourcePath, rowId, field, options);
+  if (locators.length !== 1) {
+    failPenEvidence(`${rowId} ${field} 必须绑定一个精确 Pen node。`, {
+      rowId,
+      field,
+      expectedPath: `${sourcePath}#<real-node-id>`,
+      actualLocator: value,
+      reason: "multiple-node-locators",
+    });
+  }
+  return locators[0];
+}
+
+async function validatePenArtifactEvidence(root, sourcePath, contract, coverageRows, journeyRows, screenRows, stateRows, stepRows) {
+  const index = await readPenDocumentIndex(root, sourcePath);
+  const semanticIds = new Set([
+    ...contract.coverageIds,
+    ...contract.journeyIds,
+    ...contract.screenIds,
+    ...contract.stateIds,
+    ...contract.stepIds,
+  ]);
+  const locatorOptions = { semanticIds };
+  const screenNodes = new Map();
+  for (const row of screenRows) {
+    const locator = requireSinglePenLocator(index, row.cells[1], sourcePath, row.id, "Artifact locator", locatorOptions);
+    screenNodes.set(row.id, locator.nodeId);
+  }
+
+  const stateNodes = new Map();
+  const stateEvidenceByOwner = new Map();
+  for (const row of stateRows) {
+    const ownerId = contract.stateOwnerIds.get(row.id);
+    const ownerNodeId = screenNodes.get(ownerId);
+    const locator = requireSinglePenLocator(index, row.cells[1], sourcePath, row.id, "State-specific artifact locator", locatorOptions);
+    if (!penNodeIsWithin(index, locator.nodeId, ownerNodeId, { strict: true })) {
+      failPenEvidence(`${row.id} State evidence 必须是 approved owner Screen 的严格后代。`, {
+        rowId: row.id,
+        field: "State-specific artifact locator",
+        expectedOwner: `${ownerId} -> ${sourcePath}#${ownerNodeId}`,
+        actualLocator: locator.locator,
+        reason: "outside-owner-screen",
+      });
+    }
+    if (!stateEvidenceByOwner.has(ownerId)) stateEvidenceByOwner.set(ownerId, new Map());
+    const prior = stateEvidenceByOwner.get(ownerId).get(locator.nodeId);
+    if (prior) {
+      failPenEvidence(`${row.id} 与 ${prior} 不能在同一 Screen 下共用同一个 State evidence node。`, {
+        rowId: row.id,
+        field: "State-specific artifact locator",
+        expectedOwner: ownerId,
+        actualLocator: locator.locator,
+        reason: `duplicate-state-evidence-with-${prior}`,
+      });
+    }
+    stateEvidenceByOwner.get(ownerId).set(locator.nodeId, row.id);
+    stateNodes.set(row.id, locator.nodeId);
+  }
+
+  for (const row of coverageRows) {
+    const locator = requireSinglePenLocator(index, row.cells[2], sourcePath, row.id, "Artifact locator", locatorOptions);
+    const ownerIds = [...(contract.coverageScreenIds.get(row.id) ?? [])];
+    if (!ownerIds.some((ownerId) => penNodeIsWithin(index, locator.nodeId, screenNodes.get(ownerId)))) {
+      failPenEvidence(`${row.id} Coverage evidence 必须位于批准该 Coverage 的 Screen 内。`, {
+        rowId: row.id,
+        field: "Artifact locator",
+        expectedOwner: ownerIds.join(", "),
+        actualLocator: locator.locator,
+        reason: "outside-coverage-screen",
+      });
+    }
+  }
+
+  for (const row of journeyRows) resolvePenLocators(index, row.cells[2], sourcePath, row.id, "Observed Pen path", locatorOptions);
+
+  const approvedSteps = new Map(contract.stepRows.map((row) => [row.id, row]));
+  for (const row of stepRows) {
+    const approved = approvedSteps.get(row.id);
+    const sourceStateId = contract.stepSourceStateIds.get(row.id);
+    const sourceStateNodeId = stateNodes.get(sourceStateId);
+    const sourceLocators = resolvePenLocators(index, row.cells[1], sourcePath, row.id, "Source / trigger locator", locatorOptions);
+    if (sourceLocators.some((locator) => !penNodeIsWithin(index, locator.nodeId, sourceStateNodeId))) {
+      failPenEvidence(`${row.id} source/trigger evidence 必须位于 approved source State 内。`, {
+        rowId: row.id,
+        field: "Source / trigger locator",
+        expectedOwner: `${sourceStateId} -> ${sourcePath}#${sourceStateNodeId}`,
+        actualLocator: row.cells[1],
+        reason: "outside-source-state",
+      });
+    }
+    resolvePenLocators(index, row.cells[2], sourcePath, row.id, "Feedback locator", locatorOptions);
+
+    const destinationStateIds = contract.stepDestinationStateIds.get(row.id) ?? [];
+    if (destinationStateIds.length) {
+      const destinationLocators = resolvePenLocators(index, row.cells[3], sourcePath, row.id, "Destination / result locator", locatorOptions);
+      if (destinationLocators.some((locator) => !destinationStateIds.some((stateId) => penNodeIsWithin(index, locator.nodeId, stateNodes.get(stateId))))) {
+        failPenEvidence(`${row.id} destination/result evidence 必须位于 approved destination State 内。`, {
+          rowId: row.id,
+          field: "Destination / result locator",
+          expectedOwner: destinationStateIds.join(", "),
+          actualLocator: row.cells[3],
+          reason: "outside-destination-state",
+        });
+      }
+    } else if (!isExplicitNonPenDestination(approved.cells[8]) || cleanMarkdownValue(row.cells[3]) !== cleanMarkdownValue(approved.cells[8])) {
+      failPenEvidence(`${row.id} destination/result 必须保留 approved terminal/external/out-of-scope reason。`, {
+        rowId: row.id,
+        field: "Destination / result locator",
+        expectedOwner: approved.cells[8],
+        actualLocator: row.cells[3],
+        reason: "unapproved-non-pen-destination",
+      });
+    }
+
+    const recovery = cleanMarkdownValue(row.cells[4]);
+    const approvedRecovery = cleanMarkdownValue(contract.stepRecoveryContracts.get(row.id));
+    if (isReasonedNotApplicable(recovery) || isExplicitNonPenDestination(recovery)) {
+      if (recovery !== approvedRecovery) {
+        failPenEvidence(`${row.id} failure/recovery reason 必须来自 approved Step contract。`, {
+          rowId: row.id,
+          field: "Failure / recovery locator",
+          expectedOwner: approvedRecovery,
+          actualLocator: recovery,
+          reason: "unapproved-non-pen-recovery",
+        });
+      }
+    } else {
+      resolvePenLocators(index, row.cells[4], sourcePath, row.id, "Failure / recovery locator", locatorOptions);
+    }
+
+    if (!isReasonedNotApplicable(row.cells[5])) resolvePenLocators(index, row.cells[5], sourcePath, row.id, "Re-entry locator", locatorOptions);
+  }
 }
 
 const PREFLIGHT_PENDING_FIELDS = new Set([
@@ -1682,6 +1995,12 @@ async function validateManifestJourneyEvidence(root, artifacts, route, briefArti
   const audits = auditRows(text, code);
   const unavailable = route === "pen" && fields.get("Direct route") === "unavailable";
   const success = route !== "not-needed" && !unavailable;
+  if (route === "pen" && !unavailable) {
+    assertExactValue(fields.get("Direct route"), "pen-interactive-direct", "Direct route", code);
+    const penSourcePaths = assertBoundBundlePaths(fields.get("Pen source"), previewArtifactSet, "Pen source", code, { suffix: ".pen" });
+    if (penSourcePaths.length !== 1) fail("Pen source 必须精确绑定一个当前 .pen artifact。", { code, details: { field: "Pen source", actual: penSourcePaths } });
+    await validatePenArtifactEvidence(root, penSourcePaths[0], contract, coverageRows, journeyRows, screenRows, stateRows, stepRows);
+  }
   if (success) {
     for (const row of [...screenRows, ...stateRows]) {
       assertConcreteValue(row.cells[1], `${row.id} artifact locator`, code);
@@ -1726,7 +2045,6 @@ async function validateManifestJourneyEvidence(root, artifacts, route, briefArti
   }
 
   if (route === "pen" && !unavailable) {
-    assertExactValue(fields.get("Direct route"), "pen-interactive-direct", "Direct route", code);
     assertExactValue(fields.get("Functional realization applicability"), "required", "Functional realization applicability", code);
     assertConcreteValue(fields.get("Pen CLI version"), "Pen CLI version", code);
     assertExactValue(fields.get("Live interactive help read"), "yes", "Live interactive help read", code);
@@ -1734,7 +2052,6 @@ async function validateManifestJourneyEvidence(root, artifacts, route, briefArti
     assertExactValue(fields.get("Resumable handle retained"), "yes", "Resumable handle retained", code);
     assertExactValue(fields.get("Initial prompt"), "seen", "Initial prompt", code);
     assertExactValue(fields.get("Terminal result"), "none", "Terminal result", code);
-    assertBoundBundlePaths(fields.get("Pen source"), previewArtifactSet, "Pen source", code, { suffix: ".pen" });
     assertBoundBundlePaths(fields.get("Preview exports"), previewArtifactSet, "Preview exports", code, { suffix: ".png" });
     assertBoundBundlePaths(fields.get("Read-back artifact"), previewArtifactSet, "Read-back artifact", code, {
       suffix: ".md",

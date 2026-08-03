@@ -30,6 +30,8 @@ In the same process:
 4. Complete the manifest realization tables and functional audits. Probe `template-collapse` semantically: shared shells and repeated layouts are allowed, but different primary jobs must still expose their own required content/control structure or a task reason for identical regions.
 5. Generate the preview, save the mutable `.pen`, verify the `.pen`, PNG and read-back artifacts, record `Save / clean exit: saved-open`, and retain the same live interactive handle until Experience preflight passes.
 
+When filling the manifest after read-back, record every successful Pen evidence cell as `experience/<current>.pen#<real-node-id>`, where the path exactly matches `Pen source` and the fragment is the actual non-empty node `id` returned by the current document. Resolve Screen roots first, then bind each State to a strict descendant of its approved owner Screen; multiple States under one Screen need distinct evidence nodes. Do not substitute `SCR-*`, `STATE-*`, `STEP-*`, names, prose, or a root locator for a real node locator.
+
 ## Converge before presentation
 
 Keep every not-yet-performed presentation/Owner-review/approval/final-status lifecycle field `pending`. While the retained Pen process remains alive, run the sibling workflow runtime in a separate process with the complete current artifact set, for example:

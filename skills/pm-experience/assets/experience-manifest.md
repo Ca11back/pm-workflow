@@ -26,6 +26,8 @@ List every local file bound by Brief or preview approval. Candidate artifact dec
 - Smallest scope / functional detail：{affected flow/screens/states} / {representation and interaction detail needed to explain function}
 - Scope/fidelity approval：{exact PM/Owner words/date recorded in `experience/brief.md` before the first formal mutation}
 
+> For a successful `pen` route, every Pen evidence cell uses exactly `experience/<current>.pen#<real-node-id>`. The path must equal the resolved `Pen source` artifact and the fragment must be an actual non-empty node `id` read back from that JSON document. Never use Coverage/Screen/State/Step IDs, a node name, prose, a root-count claim, or a different `.pen` path as a locator.
+
 ## Launch state
 
 - Process state：`ready | terminated | not-applicable-with-reason: <reason>`
@@ -41,7 +43,7 @@ Copy each approval-bound Coverage ID, Markdown locator, and short relationship s
 
 | Coverage ID | Markdown locator | Artifact locator | Preview/state | Runtime relationship | Sync result |
 | --- | --- | --- | --- | --- | --- |
-| `COV-001` | `delivery.md#RULE-001` | `experience/prototype.pen#<node-id-or-visible-name>` | {preview/task/state} | {approved relationship statement} | `synced | drift | unverified | not-applicable-with-reason: <reason>` |
+| `COV-001` | `delivery.md#RULE-001` | `experience/prototype.pen#<real-node-id>` | {preview/task/state} | {approved relationship statement} | `synced | drift | unverified | not-applicable-with-reason: <reason>` |
 
 ## Journey closure map
 
@@ -49,7 +51,7 @@ Copy every approval-bound Journey ID and ordered unique Coverage sequence unchan
 
 | Journey ID | Approved Coverage path | Observed Pen/reference path | Closure result |
 | --- | --- | --- | --- |
-| `JNY-001` | `COV-001`, `COV-002` | {concrete artifact locator sequence} | `closed | gap | unverified | not-applicable-with-reason: <reason>` |
+| `JNY-001` | `COV-001`, `COV-002` | `experience/prototype.pen#<entry-node-id>` -> `experience/prototype.pen#<result-node-id>` | `closed | gap | unverified | not-applicable-with-reason: <reason>` |
 
 ## Screen realization
 
@@ -57,7 +59,7 @@ Copy the complete approved Screen ID set unchanged. Artifact locators must ident
 
 | Screen ID | Artifact locator | Required regions / content / controls evidence | Realization result |
 | --- | --- | --- | --- |
-| `SCR-001` | `experience/prototype.pen#<node>` | {descendant locators and observed task-shaped regions/content/semantic actions} | `pass | gap | contradiction | unverified | not-applicable-with-reason: <reason>` |
+| `SCR-001` | `experience/prototype.pen#<real-node-id>` | {descendant locators and observed task-shaped regions/content/semantic actions} | `pass | gap | contradiction | unverified | not-applicable-with-reason: <reason>` |
 
 ## State realization
 
@@ -65,13 +67,13 @@ Several States may share one Screen root, but every material State must name its
 
 | State ID | State-specific artifact locator | Visible-delta descendant / feedback / actions / recovery evidence | Realization result |
 | --- | --- | --- | --- |
-| `STATE-001` | `experience/prototype.pen#<state-variant-or-descendant>` | {exact descendant/variant locators and observed delta, feedback, action availability and recovery/re-entry} | `pass | gap | contradiction | unverified | not-applicable-with-reason: <reason>` |
+| `STATE-001` | `experience/prototype.pen#<real-state-descendant-id>` | {exact descendant/variant locators and observed delta, feedback, action availability and recovery/re-entry} | `pass | gap | contradiction | unverified | not-applicable-with-reason: <reason>` |
 
 ## Step transition realization
 
 | Step ID | Source / trigger locator | Feedback locator | Destination / result locator | Failure / recovery locator | Re-entry locator | Realization result |
 | --- | --- | --- | --- | --- | --- | --- |
-| `STEP-001` | {actual source State and visible semantic control} | {actual immediate feedback} | {actual destination/result} | {actual failure/recovery, or reasoned not-applicable} | {actual later retrieval, or reasoned not-applicable} | `pass | gap | contradiction | unverified | not-applicable-with-reason: <reason>` |
+| `STEP-001` | `experience/prototype.pen#<source-state-id>` -> `experience/prototype.pen#<trigger-control-id>` | `experience/prototype.pen#<feedback-node-id>` | `experience/prototype.pen#<destination-or-result-node-id>`, or exact approved `terminal:` / `external:` / `out-of-scope:` reason | `experience/prototype.pen#<recovery-node-id>`, or exact approved reason | `experience/prototype.pen#<re-entry-node-id>`, or reasoned not-applicable | `pass | gap | contradiction | unverified | not-applicable-with-reason: <reason>` |
 
 ## Functional audit
 

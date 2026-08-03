@@ -155,7 +155,7 @@ function withDefinitionExperience(text) {
   ].join("\n");
 }
 
-function functionalBrief({ oneScreen = false, sharedScreen = false } = {}) {
+function functionalBrief({ oneScreen = false, sharedScreen = false, externalDestination = false, externalRecovery = false } = {}) {
   const locatorRows = oneScreen
     ? ["| `COV-A` | `delivery.md#RULE-001` | 完成一个可见任务 | 单一任务状态 | 当前状态独立 | 功能任务证据 |"]
     : [
@@ -180,7 +180,7 @@ function functionalBrief({ oneScreen = false, sharedScreen = false } = {}) {
         `| \`STATE-B\` | \`${sharedScreen ? "SCR-A" : "SCR-B"}\` | \`COV-B\` | 提交成功 | 显示结果摘要与状态 | 完成和返回可用 | 明确成功反馈 | terminal: 完成任务或返回输入 | \`delivery.md#SCN-001\` |`,
       ];
   const stepRows = oneScreen
-    ? ["| `STEP-A` | `JNY-A` | `COV-A` | `STATE-A` | 完成当前任务 | 可见提交控件 | 必要输入有效 | 显示处理中与结果 | terminal: task complete | 失败时显示原因并允许恢复 | `delivery.md#SCN-001` |"]
+    ? [`| \`STEP-A\` | \`JNY-A\` | \`COV-A\` | \`STATE-A\` | 完成当前任务 | 可见提交控件 | 必要输入有效 | 显示处理中与结果 | ${externalDestination ? "external: hand off to another system" : "terminal: task complete"} | ${externalRecovery ? "out-of-scope: recovery remains in the external system" : "失败时显示原因并允许恢复"} | \`delivery.md#SCN-001\` |`]
     : [
         "| `STEP-A` | `JNY-A` | `COV-A`, `COV-B` | `STATE-A` | 提交输入 | 可见提交控件 | 必要输入有效 | 显示处理中反馈 | `STATE-B` | 失败时显示原因并保留输入 | `delivery.md#SCN-001` |",
         "| `STEP-B` | `JNY-A` | `COV-B` | `STATE-B` | 完成确认 | 可见完成控件 | 结果已生成 | 显示完成反馈 | terminal: task complete | 可返回结果并重新进入 | `delivery.md#SCN-001` |",
@@ -234,9 +234,10 @@ function functionalBrief({ oneScreen = false, sharedScreen = false } = {}) {
   ].join("\n");
 }
 
-function functionalManifest({ route = "pen", oneScreen = false, sharedScreen = false, preflight = false, approval = "批准功能预览" } = {}) {
+function functionalManifest({ route = "pen", oneScreen = false, sharedScreen = false, externalDestination = false, externalRecovery = false, preflight = false, approval = "批准功能预览" } = {}) {
   const unavailable = route === "unavailable";
   const existingReference = route === "existing-reference";
+  const penLocator = (nodeId) => `\`experience/prototype.pen#${nodeId}\``;
   const target = existingReference ? "existing-reference" : "pen";
   const candidateArtifacts = existingReference
     ? ["experience/brief.md", "experience/manifest.md", "experience/reference.png"]
@@ -258,19 +259,27 @@ function functionalManifest({ route = "pen", oneScreen = false, sharedScreen = f
         ["STATE-B", "state-cobalt", "结果、完成反馈与重进完整", unavailable ? "unverified" : "pass"],
       ];
   const stepRows = oneScreen
-    ? [["STEP-A", "state-amber/control-x", "feedback-x", "terminal/task-complete", "recovery-x", "not-applicable-with-reason: terminal flow.", unavailable ? "unverified" : "pass"]]
+    ? [[
+        "STEP-A",
+        `${penLocator("state-amber")} -> ${penLocator("control-x")}`,
+        penLocator("feedback-x"),
+        externalDestination ? "external: hand off to another system" : "terminal: task complete",
+        externalRecovery ? "out-of-scope: recovery remains in the external system" : penLocator("recovery-x"),
+        "not-applicable-with-reason: terminal flow.",
+        unavailable ? "unverified" : "pass",
+      ]]
     : [
-        ["STEP-A", "state-amber/control-x", "feedback-x", "state-cobalt", "recovery-x", "state-cobalt/re-entry", unavailable ? "unverified" : "pass"],
-        ["STEP-B", "state-cobalt/control-y", "feedback-y", "terminal/task-complete", "recovery-y", "state-cobalt/re-entry", unavailable ? "unverified" : "pass"],
+        ["STEP-A", `${penLocator("state-amber")} -> ${penLocator("control-x")}`, penLocator("feedback-x"), penLocator("state-cobalt"), penLocator("recovery-x"), penLocator("re-entry"), unavailable ? "unverified" : "pass"],
+        ["STEP-B", `${penLocator("state-cobalt")} -> ${penLocator("control-y")}`, penLocator("feedback-y"), "terminal: task complete", penLocator("recovery-y"), penLocator("re-entry"), unavailable ? "unverified" : "pass"],
       ];
   const coverageRows = oneScreen
-    ? [["COV-A", "delivery.md#RULE-001", "artifact#node-zebra", "single task", "当前状态独立", unavailable ? "unverified" : "synced"]]
+    ? [["COV-A", "delivery.md#RULE-001", penLocator("node-zebra"), "single task", "当前状态独立", unavailable ? "unverified" : "synced"]]
     : [
-        ["COV-A", "delivery.md#RULE-001", "artifact#node-zebra", "input task", "输入后进入确认", unavailable ? "unverified" : "synced"],
-        ["COV-B", "delivery.md#SCN-001", "artifact#node-orbit", "result task", "接续输入结果", unavailable ? "unverified" : "synced"],
+        ["COV-A", "delivery.md#RULE-001", penLocator("node-zebra"), "input task", "输入后进入确认", unavailable ? "unverified" : "synced"],
+        ["COV-B", "delivery.md#SCN-001", penLocator(sharedScreen ? "state-cobalt" : "node-orbit"), "result task", "接续输入结果", unavailable ? "unverified" : "synced"],
       ];
   const approvedPath = oneScreen ? "`COV-A`" : "`COV-A`, `COV-B`";
-  const observedPath = unavailable ? "unavailable: Pen terminated before realization" : existingReference ? "reference#node-zebra -> reference#node-orbit" : "node-zebra -> control-x -> node-orbit";
+  const observedPath = unavailable ? "unavailable: Pen terminated before realization" : existingReference ? "reference#node-zebra -> reference#node-orbit" : oneScreen ? `${penLocator("state-amber")} -> ${penLocator("control-x")} -> ${penLocator("feedback-x")}` : `${penLocator("state-amber")} -> ${penLocator("control-x")} -> ${penLocator("state-cobalt")}`;
   const auditStatus = unavailable ? "unverified" : "pass";
   const applicabilityReason = "not-applicable-with-reason: route does not use this Pen field.";
   const lines = ["# Functional Manifest", ""];
@@ -314,13 +323,13 @@ function functionalManifest({ route = "pen", oneScreen = false, sharedScreen = f
     "",
     "| Screen ID | Artifact locator | Required regions / content / controls evidence | Realization result |",
     "| --- | --- | --- | --- |",
-    ...screenRows.map((row) => `| \`${row[0]}\` | ${unavailable ? "unavailable: no artifact" : `prototype#${row[1]}`} | ${unavailable ? "unavailable: no descendant evidence after termination" : row[2]} | ${row[3]} |`),
+    ...screenRows.map((row) => `| \`${row[0]}\` | ${unavailable ? "unavailable: no artifact" : penLocator(row[1])} | ${unavailable ? "unavailable: no descendant evidence after termination" : row[2]} | ${row[3]} |`),
     "",
     "## State realization",
     "",
     "| State ID | Artifact locator | Visible delta / feedback / actions / recovery evidence | Realization result |",
     "| --- | --- | --- | --- |",
-    ...stateRows.map((row) => `| \`${row[0]}\` | ${unavailable ? "unavailable: no artifact" : `prototype#${row[1]}`} | ${unavailable ? "unavailable: no state evidence after termination" : row[2]} | ${row[3]} |`),
+    ...stateRows.map((row) => `| \`${row[0]}\` | ${unavailable ? "unavailable: no artifact" : penLocator(row[1])} | ${unavailable ? "unavailable: no state evidence after termination" : row[2]} | ${row[3]} |`),
     "",
     "## Step transition realization",
     "",
@@ -373,6 +382,25 @@ function functionalManifest({ route = "pen", oneScreen = false, sharedScreen = f
     "",
   );
   return lines.join("\n");
+}
+
+function penDocument({ oneScreen = false, sharedScreen = false } = {}) {
+  const node = (id, children = undefined) => ({
+    type: children ? "frame" : "text",
+    id,
+    name: `arbitrary-${id}`,
+    fill: "#777777",
+    width: 120,
+    height: 40,
+    ...(children ? { children } : { content: "same monochrome evidence" }),
+  });
+  const stateAmber = node("state-amber", [node("control-x"), node("feedback-x"), node("recovery-x")]);
+  const stateCobalt = node("state-cobalt", [node("control-y"), node("feedback-y"), node("recovery-y"), node("re-entry")]);
+  const screenAChildren = oneScreen ? [stateAmber] : sharedScreen ? [stateAmber, stateCobalt] : [stateAmber];
+  const screens = [node("node-zebra", screenAChildren)];
+  if (!oneScreen && !sharedScreen) screens.push(node("node-orbit", [stateCobalt]));
+  screens.push(node("unrelated-root", [node("unrelated-evidence")]));
+  return `${JSON.stringify({ version: "2.15", children: screens, fileToken: "deterministic-fixture" }, null, 2)}\n`;
 }
 
 async function seedDraft(root) {
@@ -593,13 +621,13 @@ test("Pen preview gate rejects exact no-path contradiction and cross-field drift
   assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
   await writeFile(path.join(root, "draft", "experience", "brief.md"), functionalBrief());
   assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准功能合同", "--experience-route", "pen", "--actor-role", "product-owner"]).status, 0);
-  await writeFile(path.join(root, "draft", "experience", "prototype.pen"), "deterministic fixture, not a live Pen file\n");
+  await writeFile(path.join(root, "draft", "experience", "prototype.pen"), penDocument());
   await writeFile(path.join(root, "draft", "experience", "read-back.md"), "# Descendant read-back\n\ncontent, controls, feedback and transitions verified\n");
   await writeFile(path.join(root, "draft", "experience", "previews", "current.png"), "deterministic fixture\n");
   const validManifest = functionalManifest();
   const contradictions = [
-    validManifest.replace("node-zebra -> control-x -> node-orbit | closed", "none | unverified"),
-    validManifest.replace("| `SCR-A` | prototype#node-zebra", "| `SCR-X` | prototype#node-zebra"),
+    validManifest.replace("`experience/prototype.pen#state-amber` -> `experience/prototype.pen#control-x` -> `experience/prototype.pen#state-cobalt` | closed", "none | unverified"),
+    validManifest.replace("| `SCR-A` | `experience/prototype.pen#node-zebra`", "| `SCR-X` | `experience/prototype.pen#node-zebra`"),
     validManifest.replace("共享 shell 下仍有任务专用输入、说明与提交控件 | pass", "none | pass"),
     validManifest.replace("all identities and obligations | descendant read-back | pass", "all identities and obligations | none | pass"),
     validManifest.replace("- Process state：ready", "- Process state：terminated"),
@@ -643,7 +671,7 @@ test("Experience preflight accepts pending Owner lifecycle without mutating stat
   assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
   await writeFile(path.join(root, "draft", "experience", "brief.md"), functionalBrief({ sharedScreen: true }));
   assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准功能合同", "--experience-route", "pen", "--actor-role", "product-owner"]).status, 0);
-  await writeFile(path.join(root, "draft", "experience", "prototype.pen"), "shared Screen fixture with state-specific descendants\n");
+  await writeFile(path.join(root, "draft", "experience", "prototype.pen"), penDocument({ sharedScreen: true }));
   await writeFile(path.join(root, "draft", "experience", "read-back.md"), "# Read-back\n\nSTATE-A and STATE-B have distinct descendant evidence in SCR-A.\n");
   await writeFile(path.join(root, "draft", "experience", "previews", "current.png"), "deterministic preview fixture\n");
 
@@ -698,7 +726,7 @@ test("Experience preflight accepts pending Owner lifecycle without mutating stat
   assert.equal(rejectedRepeatedState.status, 2, JSON.stringify(rejectedRepeatedState));
   assert.equal(rejectedRepeatedState.output.error.details.diagnostic_fingerprint, rejectedNewlyRevealedState.output.error.details.diagnostic_fingerprint);
 
-  await writeFile(path.join(root, "draft", "experience", "manifest.md"), validManifest.replace("state-amber/control-x | feedback-x", "state-amber/control-x | pending"));
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), validManifest.replace("`experience/prototype.pen#feedback-x`", "pending"));
   const rejectedTransition = cli(args);
   assert.equal(rejectedTransition.status, 2, JSON.stringify(rejectedTransition));
   assert.equal(rejectedTransition.output.error.code, "experience-functional-evidence");
@@ -717,6 +745,145 @@ test("Experience preflight accepts pending Owner lifecycle without mutating stat
   assert.deepEqual((await readdir(root)).sort(), before.rootEntries);
   await assert.rejects(readFile(path.join(root, "workflow.lock"), "utf8"), (error) => error?.code === "ENOENT");
   assert.equal(cli(["status", "--root", root]).output.state.revision, 3);
+});
+
+test("Pen artifact evidence rejects unsupported schema, false locators, duplicate States, and ownership drift", async (t) => {
+  const root = await newRoot(t, "pen-artifact-grounding-");
+  assert.equal(cli(["init", "--root", root, "--delivery-id", "DEL-pen-artifact-grounding", "--title", "Pen artifact grounding", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+  await mkdir(path.join(root, "draft", "experience", "previews"), { recursive: true });
+  await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery\n\n- RULE-001: 用户提交输入。\n- SCN-001: 用户查看结果并恢复。\n"));
+  assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(root, "draft", "experience", "brief.md"), functionalBrief({ sharedScreen: true }));
+  assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准功能合同", "--experience-route", "pen", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(root, "draft", "experience", "read-back.md"), "# Read-back\n\ncurrent-schema descendants verified\n");
+  await writeFile(path.join(root, "draft", "experience", "previews", "current.png"), "deterministic preview fixture\n");
+
+  const sourcePath = path.join(root, "draft", "experience", "prototype.pen");
+  const manifestPath = path.join(root, "draft", "experience", "manifest.md");
+  const validSource = penDocument({ sharedScreen: true });
+  const validManifest = functionalManifest({ sharedScreen: true, preflight: true });
+  const args = [
+    "preflight-experience", "--root", root, "--artifact", "draft/experience/manifest.md",
+    "--artifact", "draft/experience/prototype.pen", "--artifact", "draft/experience/read-back.md",
+    "--artifact", "draft/experience/previews/current.png", "--experience-route", "pen",
+  ];
+  const eventCount = (await readdir(path.join(root, "events"))).length;
+  const reject = async ({ source = validSource, manifest = validManifest, rowId = undefined, reason = undefined }) => {
+    await writeFile(sourcePath, source);
+    await writeFile(manifestPath, manifest);
+    const result = cli(args);
+    assert.equal(result.status, 2, JSON.stringify(result));
+    assert.equal(result.output.error.code, "experience-functional-evidence");
+    if (rowId !== undefined) assert.equal(result.output.error.details.row_id, rowId, JSON.stringify(result));
+    if (reason !== undefined) assert.match(String(result.output.error.details.reason), reason, JSON.stringify(result));
+    assert.equal((await readdir(path.join(root, "events"))).length, eventCount);
+    return result;
+  };
+
+  await reject({ source: "not-json\n", reason: /invalid-json/u });
+  await reject({ source: validSource.replace('"2.15"', '"2.14"'), reason: /expected-version-2\.15/u });
+  await reject({ source: "[]\n", reason: /non-object-root/u });
+  await reject({ source: '{"version":"2.15","children":[]}\n', reason: /missing-node-tree/u });
+  await reject({ source: '{"version":"2.15","children":[{"type":"frame"}]}\n', reason: /missing-node-id/u });
+  await reject({ source: '{"version":"2.15","children":[{"id":"root","children":{}}]}\n', reason: /malformed-child-collection/u });
+  await reject({
+    source: '{"version":"2.15","children":[{"id":"duplicate"},{"id":"duplicate"}]}\n',
+    reason: /duplicate-node-id/u,
+  });
+  await reject({
+    manifest: validManifest.replace(
+      "| `SCR-A` | `experience/prototype.pen#node-zebra`",
+      "| `SCR-A` | `experience/other.pen#node-zebra`",
+    ),
+    rowId: "SCR-A",
+    reason: undefined,
+  });
+  await reject({
+    manifest: validManifest.replace(
+      "| `SCR-A` | `experience/prototype.pen#node-zebra`",
+      "| `SCR-A` | `experience/prototype.pen#missing-screen`",
+    ),
+    rowId: "SCR-A",
+    reason: /missing-node-id/u,
+  });
+  await reject({
+    source: validSource.replaceAll("state-amber", "STATE-UNDECLARED"),
+    manifest: validManifest.replaceAll("state-amber", "STATE-UNDECLARED"),
+    rowId: "STATE-A",
+    reason: /semantic-identity-locator/u,
+  });
+  await reject({
+    manifest: validManifest
+      .replace("| `STATE-A` | `experience/prototype.pen#state-amber`", "| `STATE-A` | `experience/prototype.pen#node-zebra`")
+      .replace("| `STATE-B` | `experience/prototype.pen#state-cobalt`", "| `STATE-B` | `experience/prototype.pen#node-zebra`"),
+    rowId: "STATE-A",
+    reason: /outside-owner-screen/u,
+  });
+  await reject({
+    manifest: validManifest.replace(
+      "| `STATE-B` | `experience/prototype.pen#state-cobalt`",
+      "| `STATE-B` | `experience/prototype.pen#state-amber`",
+    ),
+    rowId: "STATE-B",
+    reason: /duplicate-state-evidence/u,
+  });
+  await reject({
+    manifest: validManifest.replace(
+      "| `COV-A` | `delivery.md#RULE-001` | `experience/prototype.pen#node-zebra`",
+      "| `COV-A` | `delivery.md#RULE-001` | `experience/prototype.pen#unrelated-evidence`",
+    ),
+    rowId: "COV-A",
+    reason: /outside-coverage-screen/u,
+  });
+  await reject({
+    manifest: validManifest.replace("`experience/prototype.pen#feedback-x`", "`experience/prototype.pen#missing-feedback`"),
+    rowId: "STEP-A",
+    reason: /missing-node-id/u,
+  });
+
+  await writeFile(sourcePath, validSource);
+  await writeFile(manifestPath, validManifest);
+  const acceptedSharedScreen = cli(args);
+  assert.equal(acceptedSharedScreen.status, 0, JSON.stringify(acceptedSharedScreen));
+  assert.equal(acceptedSharedScreen.output.diagnostics_complete, true);
+
+  const finalDefect = functionalManifest({ sharedScreen: true }).replace(
+    "| `STATE-B` | `experience/prototype.pen#state-cobalt`",
+    "| `STATE-B` | `experience/prototype.pen#state-amber`",
+  );
+  await writeFile(manifestPath, finalDefect);
+  const finalResult = cli([
+    "approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md",
+    "--artifact", "draft/experience/prototype.pen", "--artifact", "draft/experience/read-back.md",
+    "--artifact", "draft/experience/previews/current.png", "--evidence", "批准功能预览",
+    "--experience-route", "pen", "--actor-role", "product-owner",
+  ]);
+  assert.equal(finalResult.status, 2, JSON.stringify(finalResult));
+  assert.equal(finalResult.output.error.code, "experience-functional-evidence");
+  assert.equal(finalResult.output.error.details.row_id, "STATE-B");
+  assert.match(finalResult.output.error.details.reason, /duplicate-state-evidence/u);
+  assert.equal((await readdir(path.join(root, "events"))).length, eventCount);
+});
+
+test("Pen artifact evidence accepts distinct shared-Screen States and approved external reasons", async (t) => {
+  const root = await newRoot(t, "pen-external-reason-");
+  assert.equal(cli(["init", "--root", root, "--delivery-id", "DEL-pen-external-reason", "--title", "Pen external reason", "--owner", "Owner", "--expect-revision", "0"]).status, 0);
+  await mkdir(path.join(root, "draft", "experience", "previews"), { recursive: true });
+  await writeFile(path.join(root, "draft", "delivery.md"), withDefinitionExperience("# Delivery\n\n- RULE-001: 用户完成任务并交给外部系统。\n- SCN-001: 外部系统负责后续恢复。\n"));
+  assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(root, "draft", "experience", "brief.md"), functionalBrief({ oneScreen: true, externalDestination: true, externalRecovery: true }));
+  assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准外部交接合同", "--experience-route", "pen", "--actor-role", "product-owner"]).status, 0);
+  await writeFile(path.join(root, "draft", "experience", "prototype.pen"), penDocument({ oneScreen: true }));
+  await writeFile(path.join(root, "draft", "experience", "read-back.md"), "# Read-back\n\nDistinct State evidence and external handoff reason verified.\n");
+  await writeFile(path.join(root, "draft", "experience", "previews", "current.png"), "identical monochrome layout fixture\n");
+  await writeFile(path.join(root, "draft", "experience", "manifest.md"), functionalManifest({ oneScreen: true, externalDestination: true, externalRecovery: true }));
+  const accepted = cli([
+    "approve-preview", "--root", root, "--expect-revision", "3", "--artifact", "draft/experience/manifest.md",
+    "--artifact", "draft/experience/prototype.pen", "--artifact", "draft/experience/read-back.md",
+    "--artifact", "draft/experience/previews/current.png", "--evidence", "批准功能预览",
+    "--experience-route", "pen", "--actor-role", "product-owner",
+  ]);
+  assert.equal(accepted.status, 0, JSON.stringify(accepted));
 });
 
 test("route-aware Experience validation accepts existing-reference and explicit terminal-unavailable contracts", async (t) => {
@@ -779,7 +946,7 @@ test("one-Screen arbitrary-name monochrome functional evidence passes without vi
   assert.equal(cli(["approve-definition", "--root", root, "--expect-revision", "1", "--artifact", "draft/delivery.md", "--evidence", "批准", "--actor-role", "product-owner"]).status, 0);
   await writeFile(path.join(root, "draft", "experience", "brief.md"), functionalBrief({ oneScreen: true }));
   assert.equal(cli(["approve-brief", "--root", root, "--expect-revision", "2", "--artifact", "draft/experience/brief.md", "--evidence", "批准功能合同", "--experience-route", "pen", "--actor-role", "product-owner"]).status, 0);
-  await writeFile(path.join(root, "draft", "experience", "prototype.pen"), "arbitrary nodes: zebra amber x; monochrome\n");
+  await writeFile(path.join(root, "draft", "experience", "prototype.pen"), penDocument({ oneScreen: true }));
   await writeFile(path.join(root, "draft", "experience", "read-back.md"), "# Read-back\n\nOne complete Screen with content, control, feedback and recovery.\n");
   await writeFile(path.join(root, "draft", "experience", "previews", "current.png"), "monochrome deterministic fixture\n");
   await writeFile(path.join(root, "draft", "experience", "manifest.md"), functionalManifest({ oneScreen: true }));

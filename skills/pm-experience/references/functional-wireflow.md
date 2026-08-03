@@ -2,6 +2,8 @@
 
 Use this contract after Definition approval and before Brief approval. Coverage/Journey remain product-behavior authority; Screen/State/Step only make the required functional representation inspectable.
 
+For the final Pen manifest, use only exact artifact-grounded locators in the form `experience/<current>.pen#<real-node-id>`. The path must match the manifest's Pen source and the fragment must be a real node `id` from the current JSON tree; semantic IDs, node names, prose, and Screen-root placeholders are not Pen evidence.
+
 ## Identity and scope
 
 - **Screen**: one stable task/context family with one primary job. URL, root-frame count, canvas position, modal/page form, and visual similarity do not define identity.
