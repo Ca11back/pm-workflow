@@ -79,6 +79,103 @@ test("pm-definition keeps approval-bound contracts free of mutable Experience sn
   }
 });
 
+test("semantic review checkpoints prefer a portable fresh reviewer and fall back without weakening validators", async () => {
+  const definition = await readFile(path.join(candidateRoot, "skills", "pm-definition", "SKILL.md"), "utf8");
+  const experience = await readFile(path.join(candidateRoot, "skills", "pm-experience", "SKILL.md"), "utf8");
+  const reverseReview = await readFile(path.join(candidateRoot, "skills", "pm-reverse-review", "SKILL.md"), "utf8");
+  const semanticSkills = { definition, experience, reverseReview };
+  const checkpointBlock = (name, text, startMarker, endMarker) => {
+    const start = text.indexOf(startMarker);
+    const end = text.indexOf(endMarker, start);
+    assert.ok(start >= 0 && end > start, `${name}: bounded semantic checkpoint`);
+    return text.slice(start, end);
+  };
+  const checkpointBlocks = {
+    definition: checkpointBlock(
+      "definition",
+      definition,
+      "Before requesting final Definition approval",
+      "Raw `source/` material remains outside Candidate snapshots",
+    ),
+    experience: checkpointBlock(
+      "experience",
+      experience,
+      "Before presenting any non-terminal route evidence to the Owner",
+      "For a successful Pen route, always present",
+    ),
+    reverseReview: checkpointBlock(
+      "reverseReview",
+      reverseReview,
+      "Read [review-method.md]",
+      "Write one immutable report",
+    ),
+  };
+
+  for (const [name, block] of Object.entries(checkpointBlocks)) {
+    assert.match(block, /if the host does not prohibit subagents, first attempt/i, `${name}: portable attempt condition`);
+    assert.match(block, /fresh reviewer subagent that did not author/i, `${name}: fresh non-author`);
+    assert.match(block, /read-only access/i, `${name}: read-only scope`);
+    assert.match(block, /without author conclusions, suspected defects, or expected findings/i, `${name}: artifact-first prompt`);
+    assert.match(block, /exact `path#ID` locators/i, `${name}: exact evidence locators`);
+    assert.match(block, /contradiction or missing obligation, impact, check limitations, and a recommendation/i, `${name}: evidence-bearing result`);
+    assert.match(block, /an ungrounded `pass` is not usable evidence/i, `${name}: reject ungrounded pass`);
+    assert.match(block, /subagents are prohibited or unavailable, the attempt fails, required artifacts cannot be read, or the result lacks checkable evidence/i, `${name}: complete fallback matrix`);
+    assert.match(block, /main agent immediately performs the same protocol without user intervention, a workflow event, or a product blocker/i, `${name}: non-blocking fallback`);
+    assert.match(block, /main agent resolves conflicts against source artifacts, integrates the evidence/i, `${name}: main-agent integration`);
+    assert.match(block, /main agent .*reaches the final conclusion, and owns transitions/i, `${name}: final authority`);
+    assert.match(block, /reviewer cannot approve, accept risk, mutate the product or Candidate, expand product scope, or take external action/i, `${name}: reviewer authority boundary`);
+    for (const forbidden of [
+      /\bresources?\b/i,
+      /\bconcurren(?:cy|t)\b/i,
+      /\bbudget\b/i,
+    ]) assert.doesNotMatch(block, forbidden, `${name}: routing must not match ${forbidden}`);
+  }
+
+  for (const [name, text] of Object.entries(semanticSkills)) {
+    for (const forbidden of [
+      /spawn_agent/i,
+      /Task tool/i,
+      /Agent tool/i,
+      /\bHook\b/i,
+      /\bCodex\b/i,
+      /\bClaude\b/i,
+      /\.codex\//i,
+      /\.claude\//i,
+    ]) assert.doesNotMatch(text, forbidden, `${name}: shipped Skill must not match ${forbidden}`);
+  }
+
+  const definitionCheckpoint = definition.indexOf("Before requesting final Definition approval");
+  const definitionApproval = definition.indexOf("## Exit through explicit approval");
+  assert.ok(definitionCheckpoint >= 0 && definitionApproval > definitionCheckpoint, "Definition routing stays at final readiness");
+  assert.match(definition, /never replaces required runtime status\/validation, hash\/schema, or artifact-binding checks/i);
+
+  const experienceCheckpoint = experience.indexOf("Before presenting any non-terminal route evidence to the Owner");
+  const experiencePresentation = experience.indexOf("For a successful Pen route, always present");
+  const penPreflight = experience.indexOf("then run the sibling runtime's read-only `preflight-experience` command");
+  const nonPenPreflight = experience.indexOf("run the same route-aware preflight before presenting it");
+  assert.ok(
+    penPreflight >= 0
+      && nonPenPreflight > penPreflight
+      && experienceCheckpoint > nonPenPreflight
+      && experiencePresentation > experienceCheckpoint,
+    "Experience preflight stays mandatory before semantic routing and preview presentation",
+  );
+  assert.match(experience, /never replaces the mandatory route-aware `preflight-experience` validator or its artifact-binding checks/i);
+
+  const reviewCheckpoint = reverseReview.indexOf("At this formal semantic checkpoint");
+  const reviewProtocol = reverseReview.indexOf("## Review from evidence to observable behavior");
+  assert.ok(reviewCheckpoint >= 0 && reviewProtocol > reviewCheckpoint, "Reverse Review routing stays at formal review entry");
+  assert.match(reverseReview, /never replaces the required runtime `status`, `validate`, hash\/schema, or Candidate-binding checks/i);
+  assert.match(reverseReview, /assistance justifies `isolated-same-model` or `independent-model` only when the distinct session and required model identities are known/i);
+  assert.match(reverseReview, /main agent must perform or recheck the protocol and record only the provable mode/i);
+  assert.match(reverseReview, /may disclose assistance but must not claim isolation or independence/i);
+
+  for (const skillName of ["pm-brainstorm", "pm-delivery", "pm-handoff"]) {
+    const text = await readFile(path.join(candidateRoot, "skills", skillName, "SKILL.md"), "utf8");
+    assert.doesNotMatch(text, /reviewer subagent/i, `${skillName}: ordinary runtime work must not add semantic-review delegation`);
+  }
+});
+
 test("pm-experience directs one live Pen process without a wrapper and handles non-visual Agents", async () => {
   const skill = await readFile(path.join(candidateRoot, "skills", "pm-experience", "SKILL.md"), "utf8");
   const reference = await readFile(path.join(candidateRoot, "skills", "pm-experience", "references", "pen-direct.md"), "utf8");
